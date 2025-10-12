@@ -101,7 +101,7 @@ React 18 • TypeScript • CSS3 • Vite
 
 ```bash 
 # 1. Клонируйте репозиторий
-git clone https://github.com/your-username/site-builder-platform.git
+git clone https://github.com/Kebbot/site-builder-platform.git
 
 # 2. Перейдите в папку проекта
 cd site-builder-platform
