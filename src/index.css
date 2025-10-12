@@ -1,0 +1,53 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Адаптивность для конструктора */
+* {
+  box-sizing: border-box;
+}
+
+/* Для всех компонентов конструктора */
+.builder-component {
+  max-width: 100%;
+  margin: 10px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  background: white;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+  .builder-component {
+    margin: 5px 0;
+    padding: 10px;
+  }
+
+  .workspace-area {
+    padding: 10px !important;
+  }
+}
+
+/* Для таблиц в конструкторе */
+.builder-table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
+.builder-table td,
+.builder-table th {
+  padding: 8px;
+  border: 1px solid #ddd;
+  word-wrap: break-word;
+}

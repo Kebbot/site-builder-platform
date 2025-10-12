@@ -1,0 +1,73 @@
+.alignment-guides {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.guide {
+    position: absolute;
+    pointer-events: none;
+}
+
+.guide-line {
+    position: absolute;
+    background: #f56565;
+    animation: guidePulse 2s infinite;
+}
+
+.guide.horizontal .guide-line {
+    left: 0;
+    right: 0;
+    height: 2px;
+    top: 0;
+}
+
+.guide.vertical .guide-line {
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    left: 0;
+}
+
+.guide-label {
+    position: absolute;
+    background: #f56565;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.guide.horizontal .guide-label {
+    top: -20px;
+    left: 10px;
+}
+
+.guide.vertical .guide-label {
+    left: -40px;
+    top: 10px;
+}
+
+@keyframes guidePulse {
+
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Эффект при наведении на направляющую */
+.guide:hover .guide-line {
+    background: #e53e3e;
+    animation: none;
+}

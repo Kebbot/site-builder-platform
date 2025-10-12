@@ -1,0 +1,640 @@
+.builder-element {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+    position: relative;
+    width: 100%;
+    animation: slideIn 0.3s ease-out;
+    border: 2px solid transparent;
+}
+
+.builder-element:hover {
+    border-color: #e2e8f0;
+}
+
+.builder-element:not(.selected):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.builder-element.selected {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+}
+
+.element-content {
+    width: 100%;
+}
+
+.element-badge {
+    position: absolute;
+    top: -12px;
+    left: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    animation: slideIn 0.3s ease-out;
+}
+
+.element-delete-btn {
+    position: absolute;
+    top: -10px;
+    right: 12px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.element-delete-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+}
+
+/* Специфические стили элементов */
+.header-element {
+    background: #2d3748;
+    color: white;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.logo {
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.header-nav {
+    display: flex;
+    gap: 2rem;
+}
+
+.header-nav span {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.header-nav span:hover {
+    opacity: 0.8;
+}
+
+.footer-element {
+    background: #4a5568;
+    color: white;
+    margin-top: 2rem;
+}
+
+.footer-content {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.footer-links span {
+    cursor: pointer;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.footer-links span:hover {
+    opacity: 1;
+}
+
+.card-element {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1rem;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.card-header h3 {
+    margin: 0;
+    color: #2d3748;
+}
+
+.card-body {
+    padding: 1rem;
+    color: #4a5568;
+}
+
+.card-footer {
+    padding: 1rem;
+    background: #f7fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.card-footer button {
+    background: #4299e1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.form-element {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-element h3 {
+    margin: 0 0 1rem 0;
+    color: #2d3748;
+}
+
+.form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-fields input,
+.form-fields textarea {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-fields input:focus,
+.form-fields textarea:focus {
+    outline: none;
+    border-color: #4299e1;
+}
+
+.form-fields textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-fields button {
+    background: #48bb78;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.form-fields button:hover {
+    background: #38a169;
+}
+
+.image-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 150px;
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    border-radius: 8px;
+}
+
+.image-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.7;
+}
+
+.image-caption {
+    font-size: 14px;
+    color: #718096;
+    text-align: center;
+}
+
+/* ДОБАВЛЕНО: Стили для перетаскивания */
+.builder-element.dragging {
+    z-index: 1000;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
+    transform: rotate(3deg);
+}
+
+/* ОБНОВЛЕНО: Стили для ручки перетаскивания */
+.drag-handle {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: grab;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 20;
+    user-select: none;
+}
+
+.builder-element:hover .drag-handle {
+    opacity: 1;
+}
+
+.drag-handle:hover {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.1);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.builder-element:active .drag-handle {
+    cursor: grabbing;
+}
+
+.builder-element.preview .drag-handle,
+.builder-element.dragging .drag-handle {
+    display: none;
+}
+
+/* Стили для перетаскивания */
+.builder-element.dragging {
+    z-index: 1000;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
+    transform: rotate(3deg);
+}
+
+/* Гарантируем, что клики работают */
+.builder-element {
+    cursor: pointer;
+}
+
+.builder-element.preview {
+    cursor: default;
+}
+
+/* Анимация для перетаскивания */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Стили для ZeroBlock */
+.zeroblock-element {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+.zeroblock-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    min-height: 150px;
+}
+
+.zeroblock-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+}
+
+.zeroblock-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.zeroblock-description {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    margin-bottom: 0.5rem;
+}
+
+.zeroblock-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+/* Стили для контейнерных элементов */
+.section-element {
+    background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%);
+    border: 2px dashed #cbd5e0 !important;
+}
+
+.grid-element {
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+    border: 2px dashed #fed7d7 !important;
+}
+
+.flex-element {
+    background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+    border: 2px dashed #9ae6b4 !important;
+}
+
+.container-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    min-height: 120px;
+}
+
+.container-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+}
+
+.container-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+    color: #2d3748;
+}
+
+.container-description {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    color: #4a5568;
+}
+
+.container-children {
+    display: contents;
+    /* Дети будут наследовать grid/flex */
+}
+
+/* Индикатор пустого контейнера */
+.section-element:not(:has(.container-children > *))::after {
+    content: '📥 Перетащите элементы сюда';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #718096;
+    font-size: 0.9rem;
+    padding: 1rem;
+    opacity: 0.7;
+}
+
+/* Стили для карточки товара */
+.product-card-element {
+    transition: all 0.3s ease;
+}
+
+.product-card-element:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.product-image {
+    height: 200px;
+    background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.image-placeholder {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+.product-info {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.product-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.product-description {
+    margin: 0;
+    font-size: 14px;
+    color: #718096;
+    line-height: 1.4;
+    flex: 1;
+}
+
+.product-price {
+    font-size: 20px;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.buy-button {
+    background: #48bb78;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.buy-button:hover {
+    background: #38a169;
+}
+
+/* Стили для сетки товаров */
+.product-grid-element {
+    background: #f7fafc !important;
+}
+
+.grid-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.grid-header h3 {
+    margin: 0 0 8px 0;
+    color: #2d3748;
+}
+
+.grid-header p {
+    margin: 0;
+    color: #718096;
+}
+
+.products-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+/* Стили для корзины */
+.shopping-cart-element {
+    background: white !important;
+}
+
+.cart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cart-header h3 {
+    margin: 0;
+}
+
+.cart-count {
+    background: #edf2f7;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #4a5568;
+}
+
+.cart-items {
+    margin-bottom: 16px;
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f7fafc;
+}
+
+.cart-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-top: 2px solid #e2e8f0;
+    font-size: 18px;
+}
+
+.checkout-button {
+    width: 100%;
+    background: #4299e1;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.checkout-button:hover {
+    background: #3182ce;
+}
+
+/* Стили для формы заказа */
+.checkout-form-element h3 {
+    margin: 0 0 20px 0;
+    text-align: center;
+    color: #2d3748;
+}
+
+.form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-fields input,
+.form-fields select {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.submit-order {
+    background: #48bb78;
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.submit-order:hover {
+    background: #38a169;
+}
+
+/* Стили для рейтинга */
+.product-rating-element {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: white !important;
+}
+
+.stars {
+    display: flex;
+    gap: 2px;
+}
+
+.star {
+    font-size: 18px;
+}
+
+.star.filled {
+    color: #f6ad55;
+}
+
+.rating-text {
+    font-size: 14px;
+    color: #718096;
+}
