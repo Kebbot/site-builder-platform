@@ -1,66 +1,329 @@
-.container-dropzone {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    min-height: 60px;
-    margin: 8px 0;
+.container-drop-zone {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
-.container-dropzone.drop-active {
-    animation: pulse-glow 1.5s infinite alternate;
-    border: 2px dashed #4299e1 !important;
-    background: rgba(66, 153, 225, 0.05) !important;
+.container-drop-zone.active {
+    border: 2px dashed transparent;
 }
 
-.empty-container-placeholder {
+.container-drop-zone.active.drag-over {
+    border-color: var(--color-primary);
+    background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.container-drop-zone.active.drag-over::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center,
+            color-mix(in srgb, var(--color-primary) 10%, transparent) 0%,
+            transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.container-drop-zone.inactive {
+    border: 2px dashed var(--color-border);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.container-drop-zone.preview-mode {
+    border: none;
+    pointer-events: none;
+}
+
+/* Индикатор дропа */
+.drop-indicator {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    pointer-events: none;
+    z-index: 1000;
+    animation: drop-indicator-pulse 1s infinite;
+}
+
+.drop-indicator-inner {
+    width: 100%;
+    height: 100%;
+    background: var(--color-primary);
+    border: 3px solid white;
+    border-radius: 50%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    color: #718096;
-    opacity: 0.7;
-    transition: all 0.3s ease;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.container-dropzone.drop-active .empty-container-placeholder {
-    opacity: 1;
-    transform: scale(1.05);
+.drop-indicator-icon {
+    font-size: 18px;
+    line-height: 1;
 }
 
-.placeholder-icon {
-    font-size: 24px;
-    margin-bottom: 8px;
-}
-
-.placeholder-text {
-    font-size: 14px;
+.drop-indicator-label {
+    font-size: 8px;
+    margin-top: 2px;
     text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-@keyframes pulse-glow {
-    0% {
-        box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.4);
+@keyframes drop-indicator-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
     }
 
-    70% {
-        box-shadow: 0 0 0 10px rgba(66, 153, 225, 0);
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+/* Подтверждение дропа */
+.drop-confirmation {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: var(--color-success);
+    border: 2px solid white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 1000;
+    animation: drop-confirmation 0.5s ease-out forwards;
+}
+
+@keyframes drop-confirmation {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
     }
 
     100% {
-        box-shadow: 0 0 0 0 rgba(66, 153, 225, 0);
+        transform: scale(1);
+        opacity: 0;
     }
 }
 
-/* Стили для вложенных элементов */
-.container-dropzone>.builder-element {
-    margin: 4px 0;
-    transform: scale(0.98);
-    transition: transform 0.2s ease;
+/* Зоны вставки */
+.insertion-zone {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--color-primary);
+    opacity: 0;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    z-index: 999;
 }
 
-.container-dropzone>.builder-element:hover {
-    transform: scale(0.99);
+.insertion-zone::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: var(--color-primary);
+    border-radius: 50%;
+    border: 2px solid white;
 }
 
-.container-dropzone>.builder-element.selected {
-    transform: scale(1);
+.insertion-zone.first-zone {
+    top: 0;
+}
+
+.insertion-zone.last-zone {
+    bottom: 0;
+}
+
+.container-drop-zone.drag-over .insertion-zone {
+    opacity: 1;
+}
+
+.insertion-zone.between-zone:hover,
+.insertion-zone.between-zone.drag-over {
+    opacity: 1;
+    height: 6px;
+    background: var(--color-accent);
+}
+
+/* Сообщение для пустого контейнера */
+.empty-container-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--color-text-secondary);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.empty-container-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+.empty-container-text {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--spacing-sm);
+}
+
+.empty-container-hint {
+    font-size: var(--font-size-sm);
+    opacity: 0.7;
+}
+
+/* Информация о контейнере */
+.container-info {
+    position: absolute;
+    top: var(--spacing-sm);
+    left: var(--spacing-sm);
+    background: color-mix(in srgb, var(--color-background) 90%, transparent);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    pointer-events: none;
+    z-index: 100;
+}
+
+.container-name {
+    font-weight: var(--font-weight-medium);
+}
+
+.container-stats {
+    background: var(--color-surface);
+    padding: 2px 6px;
+    border-radius: var(--border-radius-sm);
+    font-size: 10px;
+}
+
+/* Стили для разных типов контейнеров */
+.container-free {
+    /* Свободное позиционирование */
+}
+
+.container-grid {
+    display: grid;
+    gap: var(--spacing-md);
+}
+
+.container-flex {
+    display: flex;
+    flex-direction: column;
+}
+
+.container-section {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .container-drop-zone {
+        min-height: 300px;
+    }
+
+    .empty-container-icon {
+        font-size: 36px;
+    }
+
+    .empty-container-text {
+        font-size: var(--font-size-base);
+    }
+
+    .container-info {
+        top: var(--spacing-xs);
+        left: var(--spacing-xs);
+        padding: var(--spacing-xs);
+    }
+}
+
+/* Анимации */
+.container-drop-zone {
+    animation: container-appear 0.3s ease-out;
+}
+
+@keyframes container-appear {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Состояния взаимодействия */
+.container-drop-zone:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.container-drop-zone.active:hover:not(.drag-over) {
+    border-color: var(--color-border);
+    background-color: color-mix(in srgb, var(--color-surface) 30%, transparent);
+}
+
+/* Улучшенная доступность */
+@media (prefers-reduced-motion: reduce) {
+
+    .container-drop-zone,
+    .drop-indicator,
+    .drop-confirmation,
+    .insertion-zone {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* Темная тема адаптации */
+@media (prefers-color-scheme: dark) {
+    .container-drop-zone.active.drag-over {
+        background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    }
+
+    .empty-container-message {
+        color: color-mix(in srgb, var(--color-text) 60%, transparent);
+    }
 }

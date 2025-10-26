@@ -1,439 +1,452 @@
-import React from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Component } from '../../types/types';
-import { ContainerDropZone } from './ContainerDropZone';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { BuilderElement } from '../../types/types';
+import { useTheme } from '../../contexts/ThemeContext';
 import './BuilderElement.css';
 
 interface BuilderElementProps {
-    component: Component;
+    element: BuilderElement;
     isSelected: boolean;
-    onSelect: (component: Component) => void;
-    onDelete: (componentId: string) => void;
-    onUpdateComponent?: (component: Component) => void;
-    onCopyComponent?: (component: Component) => void;
-    onDuplicateComponent?: (component: Component) => void;
-    isPreviewMode?: boolean;
+    onSelect: (element: BuilderElement) => void;
+    onMove: (elementId: string, position: Partial<BuilderElement['position']>) => void;
+    onDelete: (elementId: string) => void;
+    onUpdate: (elementId: string, updates: Partial<BuilderElement>) => void;
+    onDuplicate: (elementId: string) => void;
+    onResize: (elementId: string, size: { width: number; height: number }) => void;
+    mode: 'edit' | 'preview';
+    onDragStateChange: (state: any) => void;
+    calculateGuides: (element: BuilderElement, allElements: BuilderElement[], containerRect: DOMRect) => any;
+    containerRect?: DOMRect;
+    allElements: BuilderElement[];
 }
 
-// Вспомогательная функция для получения метки типа
-const getElementTypeLabel = (type: string) => {
-    switch (type) {
-        case 'text': return 'Текст';
-        case 'button': return 'Кнопка';
-        case 'image': return 'Изображение';
-        case 'header': return 'Шапка';
-        case 'footer': return 'Подвал';
-        case 'card': return 'Карточка';
-        case 'form': return 'Форма';
-        case 'input': return 'Поле ввода';
-        case 'zeroblock': return 'ZeroBlock';
-        case 'section': return 'Секция';
-        case 'grid': return 'Grid';
-        case 'flex': return 'Flex';
-        case 'product-card': return 'Карточка товара';
-        case 'product-grid': return 'Сетка товаров';
-        case 'shopping-cart': return 'Корзина';
-        case 'checkout-form': return 'Форма заказа';
-        case 'product-rating': return 'Рейтинг';
-        default: return 'Элемент';
-    }
-};
-
-const BuilderElement: React.FC<BuilderElementProps> = ({
-    component,
+export const BuilderElement: React.FC<BuilderElementProps> = ({
+    element,
     isSelected,
     onSelect,
+    onMove,
     onDelete,
-    onUpdateComponent,
-    onCopyComponent,
-    onDuplicateComponent,
-    isPreviewMode = false
+    onUpdate,
+    onDuplicate,
+    onResize,
+    mode,
+    onDragStateChange,
+    calculateGuides,
+    containerRect,
+    allElements
 }) => {
-    // Хук для перетаскивания
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: component.id });
+    const elementRef = useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [elementStart, setElementStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+    const [resizeDirection, setResizeDirection] = useState<string>('');
+    const { theme } = useTheme();
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
+    // Обработчик начала перетаскивания
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (mode !== 'edit') return;
 
-    const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!isPreviewMode && !isDragging) {
-            onSelect(component);
+        onSelect(element);
+
+        // Проверяем, не начали ли мы ресайз с хендла
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('resize-handle')) {
+            return; // Ресайз обрабатывается отдельно
         }
+
+        setIsDragging(true);
+        setDragStart({ x: e.clientX, y: e.clientY });
+        setElementStart({
+            x: element.position.x,
+            y: element.position.y,
+            width: typeof element.position.width === 'number' ? element.position.width : parseInt(element.position.width as string),
+            height: typeof element.position.height === 'number' ? element.position.height : parseInt(element.position.height as string)
+        });
+
+        onDragStateChange({ isDragging: true, elementType: element.type, elementData: element });
     };
 
-    const handleDelete = (e: React.MouseEvent) => {
+    // Обработчик ресайза
+    const handleResizeStart = (e: React.MouseEvent, direction: string) => {
         e.stopPropagation();
-        onDelete(component.id);
+        onSelect(element);
+
+        setIsResizing(true);
+        setResizeDirection(direction);
+        setDragStart({ x: e.clientX, y: e.clientY });
+        setElementStart({
+            x: element.position.x,
+            y: element.position.y,
+            width: typeof element.position.width === 'number' ? element.position.width : parseInt(element.position.width as string),
+            height: typeof element.position.height === 'number' ? element.position.height : parseInt(element.position.height as string)
+        });
     };
 
-    const getSafeStyles = () => {
-        const {
-            flexDirection,
-            alignItems,
-            justifyContent,
-            display,
-            gridTemplateColumns,
-            gridGap,
-            flexWrap,
-            ...safeStyles
-        } = component.styles;
+    // Глобальные обработчики для drag и resize
+    useEffect(() => {
+        if (!isDragging && !isResizing) return;
 
-        const result: React.CSSProperties = {
-            ...safeStyles,
-            position: 'relative' as 'relative'
+        const handleMouseMove = (e: MouseEvent) => {
+            if (isDragging) {
+                handleDragMove(e);
+            } else if (isResizing) {
+                handleResizeMove(e);
+            }
         };
 
-        if (flexDirection) result.flexDirection = flexDirection as 'row' | 'column' | 'row-reverse' | 'column-reverse';
-        if (alignItems) result.alignItems = alignItems as 'flex-start' | 'flex-end' | 'center' | 'stretch' | 'baseline';
-        if (justifyContent) result.justifyContent = justifyContent as 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
-        if (display) result.display = display as 'block' | 'inline' | 'inline-block' | 'flex' | 'grid' | 'none';
-        if (gridTemplateColumns) result.gridTemplateColumns = gridTemplateColumns;
-        if (gridGap) result.gridGap = gridGap;
-        if (flexWrap) result.flexWrap = flexWrap as 'nowrap' | 'wrap' | 'wrap-reverse';
+        const handleMouseUp = () => {
+            if (isDragging) {
+                setIsDragging(false);
+                onDragStateChange({ isDragging: false, elementType: '', elementData: null });
+            }
+            if (isResizing) {
+                setIsResizing(false);
+                setResizeDirection('');
+            }
+        };
 
-        return result;
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, isResizing, resizeDirection]);
+
+    // Логика перемещения
+    const handleDragMove = (e: MouseEvent) => {
+        if (!containerRect) return;
+
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+
+        let newX = elementStart.x + deltaX;
+        let newY = elementStart.y + deltaY;
+
+        // Ограничиваем перемещение в пределах контейнера
+        const elementWidth = typeof element.position.width === 'number' ? element.position.width : parseInt(element.position.width as string);
+        const elementHeight = typeof element.position.height === 'number' ? element.position.height : parseInt(element.position.height as string);
+
+        newX = Math.max(0, Math.min(newX, containerRect.width - elementWidth));
+        newY = Math.max(0, Math.min(newY, containerRect.height - elementHeight));
+
+        // Вычисляем направляющие
+        const tempElement = {
+            ...element,
+            position: { ...element.position, x: newX, y: newY }
+        };
+
+        const alignmentResult = calculateGuides(tempElement, allElements, containerRect);
+
+        // Применяем привязку
+        if (alignmentResult.snappedPosition) {
+            newX = alignmentResult.snappedPosition.x;
+            newY = alignmentResult.snappedPosition.y;
+        }
+
+        onMove(element.id, { x: newX, y: newY });
     };
 
-    const renderElement = () => {
-        const baseStyle = getSafeStyles();
+    // Логика ресайза
+    const handleResizeMove = (e: MouseEvent) => {
+        if (!containerRect) return;
 
-        switch (component.type) {
-            case 'text':
-                return (
-                    <div style={baseStyle} className="element-content">
-                        {component.props.text || 'Текст элемента'}
-                    </div>
-                );
-            case 'button':
-                return (
-                    <button style={baseStyle} className="element-content">
-                        {component.props.text || 'Кнопка'}
-                    </button>
-                );
-            case 'image':
-                return (
-                    <div style={baseStyle} className="element-content">
-                        <div className="image-preview">
-                            <div className="image-icon">🖼️</div>
-                            <div className="image-caption">
-                                {component.props.text || 'Изображение'}
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 'header':
-                return (
-                    <header style={baseStyle} className="element-content header-element">
-                        <div className="header-content">
-                            <div className="logo">🏢 {component.props.text || 'Логотип'}</div>
-                            <nav className="header-nav">
-                                <span>Главная</span>
-                                <span>О нас</span>
-                                <span>Контакты</span>
-                            </nav>
-                        </div>
-                    </header>
-                );
-            case 'footer':
-                return (
-                    <footer style={baseStyle} className="element-content footer-element">
-                        <div className="footer-content">
-                            <div>© 2024 {component.props.text || 'Мой сайт'}. Все права защищены.</div>
-                            <div className="footer-links">
-                                <span>Политика конфиденциальности</span>
-                                <span>Условия использования</span>
-                            </div>
-                        </div>
-                    </footer>
-                );
-            case 'card':
-                return (
-                    <div style={baseStyle} className="element-content card-element">
-                        <div className="card-header">
-                            <h3>{component.props.text || 'Заголовок карточки'}</h3>
-                        </div>
-                        <div className="card-body">
-                            <p>Содержимое карточки. Здесь может быть текст, изображения или другие элементы.</p>
-                        </div>
-                        <div className="card-footer">
-                            <button>Действие</button>
-                        </div>
-                    </div>
-                );
-            case 'form':
-                return (
-                    <div style={baseStyle} className="element-content form-element">
-                        <h3>{component.props.text || 'Форма обратной связи'}</h3>
-                        <div className="form-fields">
-                            <input type="text" placeholder="Ваше имя" />
-                            <input type="email" placeholder="Ваш email" />
-                            <textarea placeholder="Сообщение"></textarea>
-                            <button>Отправить</button>
-                        </div>
-                    </div>
-                );
-            case 'input':
-                return (
-                    <div style={baseStyle} className="element-content input-element">
-                        <input
-                            type="text"
-                            placeholder={component.props.placeholder || "Введите текст..."}
-                            style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                        />
-                    </div>
-                );
-            case 'zeroblock':
-                return (
-                    <div style={baseStyle} className="element-content zeroblock-element">
-                        <div className="zeroblock-preview">
-                            <div className="zeroblock-icon">🎛️</div>
-                            <div className="zeroblock-title">ZeroBlock</div>
-                            <div className="zeroblock-description">
-                                {component.props.customHTML ? 'Кастомный блок' : 'Пустой блок'}
-                            </div>
-                            {component.props.customHTML && (
-                                <div className="zeroblock-badge">
-                                    💻 Есть код
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            case 'section':
-                return (
-                    <div style={baseStyle} className="element-content section-element">
-                        <div className="container-header">
-                            <div className="container-icon">📦</div>
-                            <div className="container-title">Секция</div>
-                            <div className="container-description">
-                                {component.children ? `${component.children.length} вложенных элементов` : 'Перетащите элементы сюда'}
-                            </div>
-                        </div>
-                        <ContainerDropZone containerId={component.id}>
-                            {component.children?.map((child) => (
-                                <BuilderElement
-                                    key={child.id}
-                                    component={child}
-                                    isSelected={isSelected}
-                                    onSelect={onSelect}
-                                    onDelete={onDelete}
-                                    onUpdateComponent={onUpdateComponent}
-                                    onCopyComponent={onCopyComponent}
-                                    onDuplicateComponent={onDuplicateComponent}
-                                    isPreviewMode={isPreviewMode}
-                                />
-                            ))}
-                        </ContainerDropZone>
-                    </div>
-                );
-            case 'grid':
-                return (
-                    <div style={baseStyle} className="element-content grid-element">
-                        <div className="container-header">
-                            <div className="container-icon">🔲</div>
-                            <div className="container-title">Grid Сетка</div>
-                            <div className="container-description">
-                                {component.children ? `${component.children.length} элементов в сетке` : 'CSS Grid контейнер'}
-                            </div>
-                        </div>
-                        <ContainerDropZone containerId={component.id}>
-                            {component.children?.map((child) => (
-                                <BuilderElement
-                                    key={child.id}
-                                    component={child}
-                                    isSelected={isSelected}
-                                    onSelect={onSelect}
-                                    onDelete={onDelete}
-                                    onUpdateComponent={onUpdateComponent}
-                                    onCopyComponent={onCopyComponent}
-                                    onDuplicateComponent={onDuplicateComponent}
-                                    isPreviewMode={isPreviewMode}
-                                />
-                            ))}
-                        </ContainerDropZone>
-                    </div>
-                );
-            case 'flex':
-                return (
-                    <div style={baseStyle} className="element-content flex-element">
-                        <div className="container-header">
-                            <div className="container-icon">📏</div>
-                            <div className="container-title">Flex Контейнер</div>
-                            <div className="container-description">
-                                {component.children ? `${component.children.length} flex-элементов` : 'CSS Flexbox контейнер'}
-                            </div>
-                        </div>
-                        <ContainerDropZone containerId={component.id}>
-                            {component.children?.map((child) => (
-                                <BuilderElement
-                                    key={child.id}
-                                    component={child}
-                                    isSelected={isSelected}
-                                    onSelect={onSelect}
-                                    onDelete={onDelete}
-                                    onUpdateComponent={onUpdateComponent}
-                                    onCopyComponent={onCopyComponent}
-                                    onDuplicateComponent={onDuplicateComponent}
-                                    isPreviewMode={isPreviewMode}
-                                />
-                            ))}
-                        </ContainerDropZone>
-                    </div>
-                );
-            case 'product-card':
-                return (
-                    <div style={baseStyle} className="element-content product-card-element">
-                        <div className="product-image">
-                            <div className="image-placeholder">🖼️</div>
-                        </div>
-                        <div className="product-info">
-                            <h3 className="product-title">{component.props.productName || 'Название товара'}</h3>
-                            <p className="product-description">
-                                {component.props.productDescription || 'Описание товара'}
-                            </p>
-                            <div className="product-price">
-                                {component.props.productPrice || '999'} {component.props.currency || '₽'}
-                            </div>
-                            <button className="buy-button">
-                                {component.props.buttonText || 'В корзину'}
-                            </button>
-                        </div>
-                    </div>
-                );
-            case 'product-grid':
-                return (
-                    <div style={baseStyle} className="element-content product-grid-element">
-                        <div className="grid-header">
-                            <h3>Каталог товаров</h3>
-                            <p>Сетка для отображения товаров</p>
-                        </div>
-                        <div className="products-container">
-                            {/* Дети будут отображаться здесь как товары */}
-                            {component.children?.map((child) => (
-                                <BuilderElement
-                                    key={child.id}
-                                    component={child}
-                                    isSelected={isSelected}
-                                    onSelect={onSelect}
-                                    onDelete={onDelete}
-                                    onUpdateComponent={onUpdateComponent}
-                                    onCopyComponent={onCopyComponent}
-                                    onDuplicateComponent={onDuplicateComponent}
-                                    isPreviewMode={isPreviewMode}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                );
-            case 'shopping-cart':
-                return (
-                    <div style={baseStyle} className="element-content shopping-cart-element">
-                        <div className="cart-header">
-                            <h3>🛒 Корзина</h3>
-                            <div className="cart-count">3 товара</div>
-                        </div>
-                        <div className="cart-items">
-                            <div className="cart-item">
-                                <span>Товар 1</span>
-                                <span>999 ₽</span>
-                            </div>
-                            <div className="cart-item">
-                                <span>Товар 2</span>
-                                <span>799 ₽</span>
-                            </div>
-                        </div>
-                        <div className="cart-total">
-                            <strong>Итого: 1 798 ₽</strong>
-                        </div>
-                        <button className="checkout-button">
-                            Оформить заказ
-                        </button>
-                    </div>
-                );
-            case 'checkout-form':
-                return (
-                    <div style={baseStyle} className="element-content checkout-form-element">
-                        <h3>💳 Оформление заказа</h3>
-                        <div className="form-fields">
-                            <input type="text" placeholder="ФИО" />
-                            <input type="email" placeholder="Email" />
-                            <input type="tel" placeholder="Телефон" />
-                            <input type="text" placeholder="Адрес доставки" />
-                            <select>
-                                <option>Способ оплаты</option>
-                                <option>Картой онлайн</option>
-                                <option>Наличными</option>
-                            </select>
-                            <button className="submit-order">Заказать</button>
-                        </div>
-                    </div>
-                );
-            case 'product-rating':
-                const rating = component.props.rating || 4;
-                return (
-                    <div style={baseStyle} className="element-content product-rating-element">
-                        <div className="stars">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <span key={star} className={star <= rating ? 'star filled' : 'star'}>
-                                    {star <= rating ? '⭐' : '☆'}
-                                </span>
-                            ))}
-                        </div>
-                        <span className="rating-text">({rating}.0)</span>
-                    </div>
-                );
-            default:
-                return null;
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+
+        let newWidth = elementStart.width;
+        let newHeight = elementStart.height;
+        let newX = elementStart.x;
+        let newY = elementStart.y;
+
+        const minSize = 20; // Минимальный размер элемента
+
+        switch (resizeDirection) {
+            case 'nw': // северо-запад
+                newWidth = Math.max(minSize, elementStart.width - deltaX);
+                newHeight = Math.max(minSize, elementStart.height - deltaY);
+                newX = elementStart.x + (elementStart.width - newWidth);
+                newY = elementStart.y + (elementStart.height - newHeight);
+                break;
+            case 'ne': // северо-восток
+                newWidth = Math.max(minSize, elementStart.width + deltaX);
+                newHeight = Math.max(minSize, elementStart.height - deltaY);
+                newY = elementStart.y + (elementStart.height - newHeight);
+                break;
+            case 'sw': // юго-запад
+                newWidth = Math.max(minSize, elementStart.width - deltaX);
+                newHeight = Math.max(minSize, elementStart.height + deltaY);
+                newX = elementStart.x + (elementStart.width - newWidth);
+                break;
+            case 'se': // юго-восток
+                newWidth = Math.max(minSize, elementStart.width + deltaX);
+                newHeight = Math.max(minSize, elementStart.height + deltaY);
+                break;
+            case 'n': // север
+                newHeight = Math.max(minSize, elementStart.height - deltaY);
+                newY = elementStart.y + (elementStart.height - newHeight);
+                break;
+            case 's': // юг
+                newHeight = Math.max(minSize, elementStart.height + deltaY);
+                break;
+            case 'w': // запад
+                newWidth = Math.max(minSize, elementStart.width - deltaX);
+                newX = elementStart.x + (elementStart.width - newWidth);
+                break;
+            case 'e': // восток
+                newWidth = Math.max(minSize, elementStart.width + deltaX);
+                break;
+        }
+
+        // Ограничиваем размеры в пределах контейнера
+        if (newX + newWidth > containerRect.width) {
+            newWidth = containerRect.width - newX;
+        }
+        if (newY + newHeight > containerRect.height) {
+            newHeight = containerRect.height - newY;
+        }
+
+        onMove(element.id, { x: newX, y: newY });
+        onResize(element.id, { width: newWidth, height: newHeight });
+    };
+
+    // Обработчик клавиш для удаления
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (mode !== 'edit') return;
+
+        if (e.key === 'Delete' && isSelected) {
+            e.preventDefault();
+            onDelete(element.id);
+        }
+
+        if (e.key === 'Escape' && isSelected) {
+            onSelect(null);
         }
     };
+
+    // Обработчик двойного клика для редактирования контента
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        if (mode !== 'edit') return;
+
+        e.stopPropagation();
+
+        if (element.type === 'text' || element.type === 'heading' || element.type === 'paragraph') {
+            // Активируем редактирование текста
+            const element = e.currentTarget as HTMLElement;
+            const contentEditable = element.querySelector('[contenteditable="true"]') as HTMLElement;
+            if (contentEditable) {
+                contentEditable.focus();
+            }
+        }
+    };
+
+    // Обработчик изменения контента
+    const handleContentChange = (e: React.FormEvent<HTMLElement>) => {
+        const newContent = e.currentTarget.textContent || '';
+        onUpdate(element.id, { content: newContent });
+    };
+
+    // Рендер содержимого элемента в зависимости от типа
+    const renderElementContent = () => {
+        const baseStyle: React.CSSProperties = {
+            ...element.style,
+            width: '100%',
+            height: '100%',
+            boxSizing: 'border-box'
+        };
+
+        switch (element.type) {
+            case 'text':
+            case 'paragraph':
+                return (
+                    <div
+                        className="element-text"
+                        style={baseStyle}
+                        contentEditable={mode === 'edit' && isSelected}
+                        suppressContentEditableWarning
+                        onBlur={handleContentChange}
+                        dangerouslySetInnerHTML={{ __html: element.content || 'Текст' }}
+                    />
+                );
+
+            case 'heading':
+                const headingLevel = element.props?.level || 'h1';
+                const HeadingTag = headingLevel as keyof JSX.IntrinsicElements;
+                return (
+                    <HeadingTag
+                        className="element-heading"
+                        style={baseStyle}
+                        contentEditable={mode === 'edit' && isSelected}
+                        suppressContentEditableWarning
+                        onBlur={handleContentChange}
+                        dangerouslySetInnerHTML={{ __html: element.content || 'Заголовок' }}
+                    />
+                );
+
+            case 'button':
+                return (
+                    <button
+                        className="element-button"
+                        style={baseStyle}
+                        contentEditable={mode === 'edit' && isSelected}
+                        suppressContentEditableWarning
+                        onBlur={handleContentChange}
+                        dangerouslySetInnerHTML={{ __html: element.content || 'Кнопка' }}
+                    />
+                );
+
+            case 'image':
+                return (
+                    <img
+                        className="element-image"
+                        src={element.content || element.props?.src || 'https://via.placeholder.com/150'}
+                        alt={element.props?.alt || 'Изображение'}
+                        style={baseStyle}
+                    />
+                );
+
+            case 'container':
+            case 'section':
+                return (
+                    <div
+                        className={`element-container ${element.type}`}
+                        style={baseStyle}
+                    >
+                        {element.content && (
+                            <div
+                                contentEditable={mode === 'edit' && isSelected}
+                                suppressContentEditableWarning
+                                onBlur={handleContentChange}
+                                dangerouslySetInnerHTML={{ __html: element.content }}
+                            />
+                        )}
+                        {/* Дочерние элементы будут рендериться родительским контейнером */}
+                    </div>
+                );
+
+            case 'divider':
+                return (
+                    <hr
+                        className="element-divider"
+                        style={baseStyle}
+                    />
+                );
+
+            case 'spacer':
+                return (
+                    <div
+                        className="element-spacer"
+                        style={baseStyle}
+                    />
+                );
+
+            default:
+                return (
+                    <div
+                        className="element-default"
+                        style={baseStyle}
+                        contentEditable={mode === 'edit' && isSelected}
+                        suppressContentEditableWarning
+                        onBlur={handleContentChange}
+                        dangerouslySetInnerHTML={{ __html: element.content || 'Элемент' }}
+                    />
+                );
+        }
+    };
+
+    // Рендер контролов для редактирования
+    const renderElementControls = () => {
+        if (mode !== 'edit' || !isSelected) return null;
+
+        return (
+            <div className="element-controls">
+                {/* Кнопка удаления */}
+                <button
+                    className="control-btn delete-btn"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(element.id);
+                    }}
+                    title="Удалить элемент (Delete)"
+                >
+                    ×
+                </button>
+
+                {/* Кнопка дублирования */}
+                <button
+                    className="control-btn duplicate-btn"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDuplicate(element.id);
+                    }}
+                    title="Дублировать элемент"
+                >
+                    ⎘
+                </button>
+
+                {/* Резайз хендлы */}
+                {element.metadata.resizable !== false && (
+                    <>
+                        <div className="resize-handle n" onMouseDown={(e) => handleResizeStart(e, 'n')} />
+                        <div className="resize-handle s" onMouseDown={(e) => handleResizeStart(e, 's')} />
+                        <div className="resize-handle w" onMouseDown={(e) => handleResizeStart(e, 'w')} />
+                        <div className="resize-handle e" onMouseDown={(e) => handleResizeStart(e, 'e')} />
+                        <div className="resize-handle nw" onMouseDown={(e) => handleResizeStart(e, 'nw')} />
+                        <div className="resize-handle ne" onMouseDown={(e) => handleResizeStart(e, 'ne')} />
+                        <div className="resize-handle sw" onMouseDown={(e) => handleResizeStart(e, 'sw')} />
+                        <div className="resize-handle se" onMouseDown={(e) => handleResizeStart(e, 'se')} />
+                    </>
+                )}
+
+                {/* Информация о размерах */}
+                <div className="element-size-info">
+                    {Math.round(typeof element.position.width === 'number' ? element.position.width : parseInt(element.position.width as string))} ×
+                    {Math.round(typeof element.position.height === 'number' ? element.position.height : parseInt(element.position.height as string))}
+                </div>
+            </div>
+        );
+    };
+
+    const elementWidth = typeof element.position.width === 'number' ? element.position.width : parseInt(element.position.width as string);
+    const elementHeight = typeof element.position.height === 'number' ? element.position.height : parseInt(element.position.height as string);
 
     return (
         <div
-            ref={setNodeRef}
-            style={style}
-            className={`builder-element ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isPreviewMode ? 'preview' : ''}`}
-            onClick={handleClick}
+            ref={elementRef}
+            className={`
+        builder-element 
+        element-${element.type} 
+        ${isSelected ? 'selected' : ''} 
+        ${isDragging ? 'dragging' : ''}
+        ${isResizing ? 'resizing' : ''}
+        ${mode === 'preview' ? 'preview-mode' : ''}
+      `}
+            style={{
+                position: 'absolute',
+                left: element.position.x,
+                top: element.position.y,
+                width: elementWidth,
+                height: elementHeight,
+                zIndex: element.position.zIndex,
+                cursor: mode === 'edit' && element.metadata.draggable !== false ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                transform: element.position.rotation ? `rotate(${element.position.rotation}deg)` : 'none',
+                userSelect: mode === 'edit' ? 'none' : 'auto'
+            }}
+            onMouseDown={handleMouseDown}
+            onDoubleClick={handleDoubleClick}
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
+            data-element-id={element.id}
+            data-element-type={element.type}
         >
-            {/* Ручка для перетаскивания - только для нее слушатели */}
-            {!isPreviewMode && (
-                <div
-                    className="drag-handle"
-                    {...attributes}
-                    {...listeners}
-                    title="Перетащите для изменения порядка"
-                    onClick={(e) => e.stopPropagation()} // Предотвращаем выделение при клике на ручку
-                >
-                    ⋮⋮
-                </div>
-            )}
+            {renderElementContent()}
+            {renderElementControls()}
 
-            {renderElement()}
-
-            {isSelected && !isPreviewMode && (
-                <>
-                    <div className="element-badge">
-                        {getElementTypeLabel(component.type)}
-                    </div>
-                    <button
-                        className="element-delete-btn"
-                        onClick={handleDelete}
-                        title="Удалить элемент"
-                    >
-                        🗑️
-                    </button>
-                </>
+            {/* Подсветка при выборе */}
+            {isSelected && mode === 'edit' && (
+                <div className="element-selection-overlay" />
             )}
         </div>
     );

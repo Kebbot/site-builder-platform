@@ -1,703 +1,646 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { DndContext, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import Palette from './components/Palette/Palette';
-import Builder from './components/Builder/Builder';
-import PropertiesPanel from './components/Properties/PropertiesPanel';
-import TemplatePicker from './components/Templates/TemplatePicker';
-import AnalyticsPanel from './components/Analytics/AnalyticsPanel';
-import { Component, Template } from './types/types';
-import { downloadProject } from './utils/exportUtils';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Project, BuilderElement, Container, DragState, HistoryState } from './types/types';
+import { Builder } from './components/Builder/Builder';
+import { Palette } from './components/Palette/Palette';
+import { PropertiesPanel } from './components/Properties/PropertiesPanel';
+import { TemplatePicker } from './components/Templates/TemplatePicker';
+import { AnalyticsPanel } from './components/Analytics/AnalyticsPanel';
 import { ContextHelper } from './components/ContextHelper/ContextHelper';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { exportProject, validateProjectForExport } from './utils/exportUtils';
+import { useTheme } from './contexts/ThemeContext';
 import './App.css';
 
-// Демо-шаблоны
-const demo_templates: Template[] = [
-  {
-    id: '1',
-    name: 'Бизнес-лендинг',
-    description: 'Профессиональный лендинг для бизнеса',
-    category: 'landing',
-    thumbnail: '💼',
-    components: [
-      {
-        id: 'header-1',
-        type: 'header',
-        props: { text: 'Мой Бизнес' },
-        styles: {
-          backgroundColor: '#2d3748',
-          color: 'white',
-          padding: '1rem 2rem'
-        }
+// Начальное состояние проекта
+const initialProject: Project = {
+  id: 'project-1',
+  name: 'Мой сайт',
+  description: 'Создан в конструкторе сайтов',
+  containers: [
+    {
+      id: 'container-1',
+      type: 'free',
+      name: 'Основной контейнер',
+      elements: [],
+      style: {
+        width: '100%',
+        height: '100vh',
+        minHeight: '600px',
+        backgroundColor: '#ffffff',
+        padding: '20px'
       },
-      {
-        id: 'text-1',
-        type: 'text',
-        props: { text: 'Добро пожаловать в наш бизнес' },
-        styles: {
-          padding: '2rem',
-          textAlign: 'center',
-          fontSize: '24px',
-          backgroundColor: '#f7fafc'
-        }
+      metadata: {
+        isRoot: true,
+        canDelete: false,
+        canRename: true
       }
-    ]
+    }
+  ],
+  settings: {
+    viewport: 'desktop',
+    breakpoints: {
+      mobile: 375,
+      tablet: 768,
+      desktop: 1200
+    },
+    grid: true,
+    snap: true,
+    snapThreshold: 5,
+    rulers: false,
+    outline: true,
+    pageWidth: '100%',
+    pageHeight: 'auto',
+    pageBackground: '#ffffff',
+    title: 'Мой сайт',
+    description: 'Создан в конструкторе сайтов',
+    keywords: 'сайт, конструктор',
+    published: false
   },
-  {
-    id: '2',
-    name: 'Портфолио',
-    description: 'Покажите свои работы в лучшем свете',
-    category: 'portfolio',
-    thumbnail: '🎨',
-    components: [
-      {
-        id: 'header-2',
-        type: 'header',
-        props: { text: 'Мое Портфолио' },
-        styles: {
-          backgroundColor: '#4c51bf',
-          color: 'white',
-          padding: '1rem 2rem'
-        }
-      },
-      {
-        id: 'card-1',
-        type: 'card',
-        props: { text: 'Мои проекты' },
-        styles: {
-          margin: '2rem',
-          padding: '0',
-          backgroundColor: 'white',
-          borderRadius: '8px'
-        }
-      }
-    ]
+  metadata: {
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'user',
+    version: '1.0.0'
   }
-];
+};
 
-// Хук для истории изменений
-function useHistory<T>(initialState: T) {
-  const [history, setHistory] = useState<T[]>([initialState]);
-  const [index, setIndex] = useState(0);
-  const currentState = history[index];
+// История изменений
+const initialHistory: HistoryState = {
+  past: [],
+  future: [],
+  present: initialProject
+};
 
-  const push = useCallback((newState: T) => {
-    const newHistory = history.slice(0, index + 1);
-    newHistory.push(newState);
-    setHistory(newHistory);
-    setIndex(newHistory.length - 1);
-  }, [history, index]);
+function App() {
+  // Состояния приложения
+  const [history, setHistory] = useState<HistoryState>(initialHistory);
+  const [selectedElement, setSelectedElement] = useState<BuilderElement | null>(null);
+  const [selectedContainer, setSelectedContainer] = useState<Container | null>(initialProject.containers[0]);
+  const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    elementType: '',
+    elementData: null,
+    source: 'palette'
+  });
+  const [activeTab, setActiveTab] = useState<'builder' | 'templates' | 'analytics'>('builder');
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    format: 'html' as const,
+    includeCSS: true,
+    includeJS: true,
+    minify: false,
+    responsive: true,
+    exportPath: './'
+  });
 
+  const project = history.present;
+  const { theme } = useTheme();
+
+  // Обновление проекта с сохранением в историю
+  const updateProject = useCallback((newProject: Project) => {
+    setHistory(prev => ({
+      past: [...prev.past, prev.present],
+      future: [],
+      present: newProject
+    }));
+  }, []);
+
+  // Отмена последнего действия
   const undo = useCallback(() => {
-    if (index > 0) {
-      setIndex(index - 1);
-    }
-  }, [index]);
+    setHistory(prev => {
+      if (prev.past.length === 0) return prev;
 
+      const previous = prev.past[prev.past.length - 1];
+      const newPast = prev.past.slice(0, -1);
+
+      return {
+        past: newPast,
+        future: [prev.present, ...prev.future],
+        present: previous
+      };
+    });
+  }, []);
+
+  // Повтор последнего действия
   const redo = useCallback(() => {
-    if (index < history.length - 1) {
-      setIndex(index + 1);
-    }
-  }, [index, history.length]);
+    setHistory(prev => {
+      if (prev.future.length === 0) return prev;
 
-  return {
-    state: currentState,
-    push,
-    undo,
-    redo,
-    canUndo: index > 0,
-    canRedo: index < history.length - 1
-  };
-}
+      const next = prev.future[0];
+      const newFuture = prev.future.slice(1);
 
-function AppContent() {
-  const { theme, toggleTheme } = useTheme();
-  const {
-    state: components,
-    push: pushHistory,
-    undo,
-    redo,
-    canUndo,
-    canRedo
-  } = useHistory<Component[]>([]);
-
-  const [selectedComponent, setSelectedComponent] = useState<Component | null>(null);
-  const [projectName, setProjectName] = useState<string>('МойСайт');
-  const [showTemplates, setShowTemplates] = useState<boolean>(false);
-  const [clipboard, setClipboard] = useState<Component | null>(null);
-  const [showCopyToast, setShowCopyToast] = useState<boolean>(false);
-  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
-
-  // НОВОЕ: Состояние для скрытия панелей
-  const [isPaletteVisible, setIsPaletteVisible] = useState(true);
-  const [isPropertiesVisible, setIsPropertiesVisible] = useState(true);
-
-  // Функция для обновления компонентов с историей
-  const setComponents = useCallback((newComponents: Component[]) => {
-    pushHistory(newComponents);
-  }, [pushHistory]);
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over) return;
-
-    const elementType = active.data.current?.type;
-    const isContainerDrop = over.data.current?.isContainer;
-    const containerId = isContainerDrop ? over.id.toString().replace('container-', '') : null;
-
-    console.log('DRAG DEBUG:', { elementType, isContainerDrop, containerId, over: over.id });
-
-    // СЛУЧАЙ 1: Перетаскивание в контейнер
-    if (isContainerDrop && containerId && elementType) {
-      const newComponent: Component = {
-        id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: elementType as any,
-        props: {
-          text: getDefaultText(elementType)
-        },
-        styles: getDefaultStyles(elementType)
+      return {
+        past: [...prev.past, prev.present],
+        future: newFuture,
+        present: next
       };
+    });
+  }, []);
 
-      // Находим контейнер и добавляем в него элемент
-      const updatedComponents = addComponentToContainer(components, containerId, newComponent);
-      setComponents(updatedComponents);
-      return;
-    }
+  // Проверка возможности undo/redo
+  const canUndo = history.past.length > 0;
+  const canRedo = history.future.length > 0;
 
-    // СЛУЧАЙ 2: Перетаскивание в основную область
-    if (over.id === 'builder-dropzone' && elementType) {
-      const newComponent: Component = {
-        id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: elementType as any,
-        props: {
-          text: getDefaultText(elementType)
-        },
-        styles: getDefaultStyles(elementType)
-      };
+  // Обработчик обновления элемента
+  const handleElementUpdate = useCallback((elementId: string, updates: Partial<BuilderElement>) => {
+    const updatedContainers = project.containers.map(container => ({
+      ...container,
+      elements: container.elements.map(element =>
+        element.id === elementId ? { ...element, ...updates } : element
+      )
+    }));
 
-      setComponents([...components, newComponent]);
-    }
-  };
+    updateProject({
+      ...project,
+      containers: updatedContainers,
+      metadata: {
+        ...project.metadata,
+        updatedAt: new Date().toISOString()
+      }
+    });
+  }, [project, updateProject]);
 
-
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    if (activeId === overId) return;
-
-    const activeIndex = components.findIndex((comp) => comp.id === activeId);
-    const overIndex = components.findIndex((comp) => comp.id === overId);
-
-    if (activeIndex !== -1 && overIndex !== -1) {
-      const newComponents = arrayMove(components, activeIndex, overIndex);
-      setComponents(newComponents);
-    }
-  };
-
-  // Функция для получения текста по умолчанию
-  const getDefaultText = (type: string) => {
-    switch (type) {
-      case 'text': return 'Это текстовый блок';
-      case 'button': return 'Нажми меня';
-      case 'image': return 'Изображение';
-      case 'header': return 'Мой сайт';
-      case 'footer': return 'Мой сайт';
-      case 'card': return 'Заголовок карточки';
-      case 'form': return 'Форма обратной связи';
-      case 'input': return '';
-      case 'zeroblock': return 'ZeroBlock';
-      // ДОБАВЛЯЕМ КОНТЕЙНЕРЫ
-      case 'section': return 'Секция';
-      case 'grid': return 'Grid сетка';
-      case 'flex': return 'Flex контейнер';
-      // E-COMMERCE КОМПОНЕНТЫ
-      case 'product-card': return 'Название товара';
-      case 'product-grid': return 'Сетка товаров';
-      case 'shopping-cart': return 'Корзина покупок';
-      case 'checkout-form': return 'Оформление заказа';
-      case 'product-rating': return 'Рейтинг';
-      default: return 'Элемент';
-    }
-  };
-
-  // Функция для получения стилей по умолчанию
-  const getDefaultStyles = (type: string): Component['styles'] => {
-    const baseStyles: Component['styles'] = {
-      margin: '5px',
-      padding: '10px',
-      border: '1px solid #ddd',
-      backgroundColor: '#fff',
-      borderRadius: '4px'
-    };
-
-    switch (type) {
-      case 'text':
-        return {
-          ...baseStyles,
-          minHeight: '40px',
-          display: 'flex',
-          alignItems: 'center'
-        };
-      case 'button':
-        return {
-          ...baseStyles,
-          backgroundColor: '#2196f3',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-          width: 'auto',
-          display: 'inline-block'
-        };
-      case 'image':
-        return {
-          ...baseStyles,
-          minHeight: '100px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#f5f5f5'
-        };
-      case 'header':
-        return {
-          ...baseStyles,
-          backgroundColor: '#2d3748',
-          color: 'white',
-          padding: '1rem 2rem',
-          margin: '0',
-          width: '100%'
-        };
-      case 'footer':
-        return {
-          ...baseStyles,
-          backgroundColor: '#4a5568',
-          color: 'white',
-          padding: '2rem',
-          margin: '2rem 0 0 0',
-          width: '100%'
-        };
-      case 'card':
-        return {
-          ...baseStyles,
-          backgroundColor: 'white',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          padding: '0'
-        };
-      case 'form':
-        return {
-          ...baseStyles,
-          backgroundColor: 'white',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-        };
-      case 'input':
-        return {
-          ...baseStyles,
-          padding: '8px'
-        };
-      case 'zeroblock':
-        return {
-          ...baseStyles,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // ← ОСТАВЛЯЕМ background
-          color: 'white',
-          minHeight: '150px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '2px dashed rgba(255, 255, 255, 0.3)'
-        };
-      case 'section':
-        return {
-          ...baseStyles,
-          height: '200px',
-          backgroundColor: '#f7fafc',
-          border: '2px dashed #cbd5e0',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '20px'
-        };
-      case 'grid':
-        return {
-          ...baseStyles,
-          height: '200px',
-          backgroundColor: '#fff5f5',
-          border: '2px dashed #fed7d7',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gridGap: '10px',
-          padding: '15px'
-        };
-      case 'flex':
-        return {
-          ...baseStyles,
-          height: '150px',
-          backgroundColor: '#f0fff4',
-          border: '2px dashed #c6f6d5',
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '15px'
-        };
-      case 'product-card':
-        return {
-          ...baseStyles,
-          width: '300px',
-          height: '400px',
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          display: 'flex',
-          flexDirection: 'column'
-        };
-      case 'product-grid':
-        return {
-          ...baseStyles,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gridGap: '20px',
-          padding: '20px',
-          backgroundColor: '#f7fafc'
-        };
-      case 'shopping-cart':
-        return {
-          ...baseStyles,
-          width: '350px',
-          height: '200px',
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '20px',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)'
-        };
-      case 'checkout-form':
-        return {
-          ...baseStyles,
-          width: '400px',
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '24px',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)'
-        };
-      case 'product-rating':
-        return {
-          ...baseStyles,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          padding: '8px 12px',
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
-          borderRadius: '20px',
-          width: 'fit-content'
-        };
-      default:
-        return baseStyles;
-    }
-  };
-
-  // Функция для обновления компонента
-  const updateComponent = (updatedComponent: Component) => {
-    const newComponents = components.map(comp =>
-      comp.id === updatedComponent.id ? updatedComponent : comp
+  // Обработчик обновления контейнера
+  const handleContainerUpdate = useCallback((containerId: string, updates: Partial<Container>) => {
+    const updatedContainers = project.containers.map(container =>
+      container.id === containerId ? { ...container, ...updates } : container
     );
-    setComponents(newComponents);
-    setSelectedComponent(updatedComponent);
-  };
 
-  // Функция для удаления компонента
-  const deleteComponent = (componentId: string) => {
-    const newComponents = components.filter(comp => comp.id !== componentId);
-    setComponents(newComponents);
-    if (selectedComponent?.id === componentId) {
-      setSelectedComponent(null);
-    }
-  };
+    updateProject({
+      ...project,
+      containers: updatedContainers,
+      metadata: {
+        ...project.metadata,
+        updatedAt: new Date().toISOString()
+      }
+    });
+  }, [project, updateProject]);
 
-  // Функция для копирования элемента
-  const copyComponent = (component: Component) => {
-    setClipboard(component);
-    setShowCopyToast(true);
-    setTimeout(() => setShowCopyToast(false), 2000);
-  };
+  // Обработчик обновления настроек проекта
+  const handleProjectUpdate = useCallback((updates: Partial<Project>) => {
+    updateProject({
+      ...project,
+      ...updates,
+      metadata: {
+        ...project.metadata,
+        updatedAt: new Date().toISOString()
+      }
+    });
+  }, [project, updateProject]);
 
-  // Функция для вставки элемента
-  const pasteComponent = () => {
-    if (clipboard) {
-      const newComponent: Component = {
-        ...clipboard,
-        id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      };
-      setComponents([...components, newComponent]);
-    }
-  };
+  // Обработчик переключения режима просмотра/редактирования
+  const handleModeToggle = useCallback(() => {
+    setMode(prev => prev === 'edit' ? 'preview' : 'edit');
+  }, []);
 
-  // Функция для дублирования элемента
-  const duplicateComponent = (component: Component) => {
-    const newComponent: Component = {
-      ...component,
-      id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    };
-    setComponents([...components, newComponent]);
-  };
+  // Обработчик изменения состояния перетаскивания
+  const handleDragStateChange = useCallback((newDragState: DragState) => {
+    setDragState(newDragState);
+  }, []);
 
-  // Функция для экспорта проекта
-  const handleExport = () => {
-    if (components.length === 0) {
-      alert('Добавьте хотя бы один элемент на страницу перед экспортом!');
+  // Обработчик выбора шаблона
+  const handleTemplateSelect = useCallback((templateProject: Project) => {
+    updateProject({
+      ...templateProject,
+      id: project.id,
+      metadata: {
+        ...templateProject.metadata,
+        createdAt: project.metadata.createdAt,
+        updatedAt: new Date().toISOString()
+      }
+    });
+
+    setActiveTab('builder');
+    setSelectedElement(null);
+    setSelectedContainer(templateProject.containers[0] || null);
+  }, [project, updateProject]);
+
+  // Обработчик экспорта проекта
+  const handleExport = useCallback(() => {
+    const validation = validateProjectForExport(project);
+
+    if (!validation.isValid) {
+      alert(`Ошибки при экспорте:\n${validation.errors.join('\n')}`);
       return;
     }
 
-    downloadProject(components, projectName);
-    alert(`Проект "${projectName}" успешно экспортирован! Проверьте папку загрузок.`);
-  };
+    const exported = exportProject(project, exportOptions);
 
-  // Функция для применения шаблона
-  const handleTemplateSelect = (template: Template) => {
-    setComponents(template.components);
-    setShowTemplates(false);
-  };
+    // Создаем и скачиваем файлы
+    const htmlBlob = new Blob([exported.html], { type: 'text/html' });
+    const cssBlob = new Blob([exported.css], { type: 'text/css' });
+    const jsBlob = new Blob([exported.js], { type: 'application/javascript' });
 
-  // Обработчики клавиш
+    // Скачиваем HTML файл
+    const htmlLink = document.createElement('a');
+    htmlLink.href = URL.createObjectURL(htmlBlob);
+    htmlLink.download = 'index.html';
+    htmlLink.click();
+
+    // Для демонстрации показываем информацию об экспорте
+    console.log('Экспорт завершен:', exported.metadata);
+    setShowExportDialog(false);
+
+    alert(`Проект успешно экспортирован!\n\nФайлы:\n- index.html (${exported.metadata.fileSize})\n- ${exported.assets.length} ресурсов`);
+  }, [project, exportOptions]);
+
+  // Горячие клавиши
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSelectedComponent(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Undo/Redo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo) undo();
       }
 
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        event.stopPropagation();
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        if (canRedo) redo();
+      }
 
-        switch (event.key.toLowerCase()) {
-          case 'c':
-          case 'с':
-            if (selectedComponent) {
-              setClipboard(selectedComponent);
-              setShowCopyToast(true);
-              setTimeout(() => setShowCopyToast(false), 2000);
-            }
-            break;
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') {
+        e.preventDefault();
+        if (canRedo) redo();
+      }
 
-          case 'v':
-          case 'м':
-            if (clipboard) {
-              const newComponent = {
-                ...clipboard,
-                id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-              };
-              const newComponents = [...components, newComponent];
-              setComponents(newComponents);
-            }
-            break;
+      // Переключение режима
+      if (e.key === 'Tab' && e.ctrlKey) {
+        e.preventDefault();
+        handleModeToggle();
+      }
 
-          case 'd':
-          case 'в':
-            if (selectedComponent) {
-              const newComponent = {
-                ...selectedComponent,
-                id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-              };
-              const newComponents = [...components, newComponent];
-              setComponents(newComponents);
-            }
-            break;
-
-          case 'z':
-            if (event.shiftKey) {
-              redo();
-            } else {
-              undo();
-            }
-            break;
-
-          case 'y':
-            redo();
-            break;
-        }
+      // Сохранение
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        // В реальном приложении здесь была бы логика сохранения
+        console.log('Project saved:', project);
+        alert('Проект сохранен!');
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [components, selectedComponent, clipboard, undo, redo, setComponents]);
+  }, [canUndo, canRedo, undo, redo, handleModeToggle, project]);
 
+  // Автосохранение при изменении проекта
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // В реальном приложении здесь была бы логика автосохранения
+      if (project !== initialProject) {
+        console.log('Autosaving project...');
+        localStorage.setItem('builder-project-autosave', JSON.stringify(project));
+      }
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [project]);
+
+  // Восстановление автосохранения при загрузке
+  useEffect(() => {
+    const savedProject = localStorage.getItem('builder-project-autosave');
+    if (savedProject) {
+      try {
+        const parsedProject = JSON.parse(savedProject);
+        // Можно добавить диалог подтверждения восстановления
+        console.log('Found autosaved project');
+      } catch (error) {
+        console.warn('Failed to parse autosaved project:', error);
+      }
+    }
+  }, []);
+
+  // Ренер главного интерфейса
   return (
-    <DndContext onDragEnd={handleDragEnd} onDragOver={handleDragOver}>
-      <div className="app">
+    <ThemeProvider>
+      <div className={`app ${mode} viewport-${project.settings.viewport}`}>
+        {/* Верхняя панель инструментов */}
         <header className="app-header">
-          <div className="header-content">
-            <div className="header-title">
-              <h1>🚀 Конструктор сайтов</h1>
-              <p>Профессиональный no-code конструктор</p>
+          <div className="header-left">
+            <div className="logo">
+              <span className="logo-icon">🚀</span>
+              <span className="logo-text">SiteBuilder</span>
             </div>
-            <div className="header-controls">
-              {/* НОВОЕ: Кнопки переключения панелей */}
-              <button
-                onClick={() => setIsPaletteVisible(!isPaletteVisible)}
-                className="panel-toggle"
-                title={isPaletteVisible ? 'Скрыть панель элементов' : 'Показать панель элементов'}
-              >
-                {isPaletteVisible ? '◀️ Элементы' : 'Элементы ▶️'}
-              </button>
-              <ContextHelper components={components} />
-              <button
-                onClick={() => setShowAnalytics(true)}
-                className="analytics-button"
-                title="Статистика проекта"
-              >
-                📊 Аналитика
-              </button>
 
-              <button
-                onClick={toggleTheme}
-                className="theme-toggle"
-                title={theme === 'light' ? 'Темная тема' : 'Светлая тема'}
-              >
-                {theme === 'light' ? '🌙' : '☀️'}
-              </button>
-
-              <button
-                onClick={() => setShowTemplates(true)}
-                className="template-button"
-              >
-                🎨 Шаблоны
-              </button>
-
-              <div className="history-controls">
-                <button
-                  onClick={undo}
-                  disabled={!canUndo}
-                  className="history-btn"
-                  title="Отменить (Ctrl+Z)"
-                >
-                  ↩️
-                </button>
-                <button
-                  onClick={redo}
-                  disabled={!canRedo}
-                  className="history-btn"
-                  title="Повторить (Ctrl+Y)"
-                >
-                  ↪️
-                </button>
-              </div>
-
-              <button
-                onClick={() => setIsPropertiesVisible(!isPropertiesVisible)}
-                className="panel-toggle"
-                title={isPropertiesVisible ? 'Скрыть свойства' : 'Показать свойства'}
-              >
-                {isPropertiesVisible ? 'Свойства ▶️' : '◀️ Свойства'}
-              </button>
-
+            <div className="project-info">
               <input
                 type="text"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
+                value={project.name}
+                onChange={(e) => handleProjectUpdate({ name: e.target.value })}
                 className="project-name-input"
                 placeholder="Название проекта"
               />
+              <span className="project-stats">
+                {project.containers.reduce((sum, container) => sum + container.elements.length, 0)} элементов
+              </span>
+            </div>
+          </div>
 
+          <div className="header-center">
+            <div className="mode-controls">
               <button
-                onClick={handleExport}
-                className="export-button"
-                disabled={components.length === 0}
+                className={`mode-btn ${mode === 'edit' ? 'active' : ''}`}
+                onClick={() => setMode('edit')}
+                title="Режим редактирования"
               >
-                📦 Экспорт
+                ✏️ Редактировать
+              </button>
+              <button
+                className={`mode-btn ${mode === 'preview' ? 'active' : ''}`}
+                onClick={() => setMode('preview')}
+                title="Режим просмотра"
+              >
+                👁️ Просмотр
+              </button>
+            </div>
+
+            <div className="viewport-controls">
+              <select
+                value={project.settings.viewport}
+                onChange={(e) => handleProjectUpdate({
+                  settings: { ...project.settings, viewport: e.target.value as any }
+                })}
+                className="viewport-select"
+              >
+                <option value="desktop">🖥️ Desktop</option>
+                <option value="tablet">📱 Tablet</option>
+                <option value="mobile">📱 Mobile</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="header-right">
+            <div className="history-controls">
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                className="history-btn"
+                title="Отменить (Ctrl+Z)"
+              >
+                ↩️
+              </button>
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                className="history-btn"
+                title="Повторить (Ctrl+Y)"
+              >
+                ↪️
+              </button>
+            </div>
+
+            <div className="action-controls">
+              <button
+                onClick={() => setShowExportDialog(true)}
+                className="export-btn"
+                title="Экспорт проекта"
+              >
+                📤 Экспорт
+              </button>
+              <button
+                onClick={() => setActiveTab('templates')}
+                className="templates-btn"
+                title="Шаблоны"
+              >
+                📁 Шаблоны
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className="analytics-btn"
+                title="Аналитика"
+              >
+                📊 Аналитика
               </button>
             </div>
           </div>
         </header>
 
-        <div className="app-body">
-          {/* Панель элементов - условный рендеринг */}
-          {isPaletteVisible && <Palette />}
-
-          {/* Основная рабочая область */}
-          <Builder
-            components={components}
-            selectedComponent={selectedComponent}
-            onSelectComponent={setSelectedComponent}
-            onDeleteComponent={deleteComponent}
-            onUpdateComponent={updateComponent}
-            onCopyComponent={copyComponent}
-            onDuplicateComponent={duplicateComponent}
-          />
-
-          {/* Панель свойств - условный рендеринг */}
-          {isPropertiesVisible && (
-            <PropertiesPanel
-              component={selectedComponent}
-              onUpdateComponent={updateComponent}
-              onDeleteComponent={deleteComponent}
-              onCopyComponent={copyComponent}
-              onDuplicateComponent={duplicateComponent}
-            />
+        {/* Основной контент */}
+        <main className="app-main">
+          {/* Левая панель - Палитра элементов */}
+          {activeTab === 'builder' && (
+            <aside className="app-sidebar left-sidebar">
+              <Palette
+                onDragStart={handleDragStateChange}
+                onDragEnd={() => handleDragStateChange({
+                  isDragging: false,
+                  elementType: '',
+                  elementData: null,
+                  source: 'palette'
+                })}
+                isDragging={dragState.isDragging}
+              />
+            </aside>
           )}
-        </div>
 
-        {/* Модальные окна */}
-        {showTemplates && (
-          <TemplatePicker
-            templates={demo_templates}
-            onTemplateSelect={handleTemplateSelect}
-            onClose={() => setShowTemplates(false)}
-          />
-        )}
+          {/* Центральная область - Конструктор или другие вкладки */}
+          <section className="app-content">
+            {activeTab === 'builder' && (
+              <Builder
+                project={project}
+                onProjectUpdate={updateProject}
+                selectedElement={selectedElement}
+                onElementSelect={setSelectedElement}
+                selectedContainer={selectedContainer}
+                onContainerSelect={setSelectedContainer}
+                mode={mode}
+                onModeChange={setMode}
+              />
+            )}
 
-        {showAnalytics && (
-          <AnalyticsPanel
-            components={components}
-            isOpen={showAnalytics}
-            onClose={() => setShowAnalytics(false)}
-          />
-        )}
+            {activeTab === 'templates' && (
+              <TemplatePicker
+                onTemplateSelect={handleTemplateSelect}
+                onBack={() => setActiveTab('builder')}
+              />
+            )}
 
-        {showCopyToast && (
-          <div className="toast">
-            ✅ Элемент скопирован в буфер обмена
+            {activeTab === 'analytics' && (
+              <AnalyticsPanel
+                project={project}
+                onBack={() => setActiveTab('builder')}
+              />
+            )}
+          </section>
+
+          {/* Правая панель - Свойства */}
+          {activeTab === 'builder' && (
+            <aside className="app-sidebar right-sidebar">
+              <PropertiesPanel
+                selectedElement={selectedElement}
+                selectedContainer={selectedContainer}
+                project={project}
+                onElementUpdate={handleElementUpdate}
+                onContainerUpdate={handleContainerUpdate}
+                onProjectUpdate={handleProjectUpdate}
+              />
+            </aside>
+          )}
+        </main>
+
+        {/* Контекстная помощь */}
+        <ContextHelper
+          selectedElement={selectedElement}
+          selectedContainer={selectedContainer}
+          mode={mode}
+        />
+
+        {/* Диалог экспорта */}
+        {showExportDialog && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Экспорт проекта</h2>
+                <button
+                  onClick={() => setShowExportDialog(false)}
+                  className="modal-close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="export-options">
+                  <div className="option-group">
+                    <label>Формат:</label>
+                    <select
+                      value={exportOptions.format}
+                      onChange={(e) => setExportOptions(prev => ({
+                        ...prev,
+                        format: e.target.value as any
+                      }))}
+                    >
+                      <option value="html">HTML/CSS/JS</option>
+                      <option value="react">React Components</option>
+                      <option value="static">Static Site</option>
+                    </select>
+                  </div>
+
+                  <div className="option-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={exportOptions.includeCSS}
+                        onChange={(e) => setExportOptions(prev => ({
+                          ...prev,
+                          includeCSS: e.target.checked
+                        }))}
+                      />
+                      Включать CSS
+                    </label>
+                  </div>
+
+                  <div className="option-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={exportOptions.includeJS}
+                        onChange={(e) => setExportOptions(prev => ({
+                          ...prev,
+                          includeJS: e.target.checked
+                        }))}
+                      />
+                      Включать JavaScript
+                    </label>
+                  </div>
+
+                  <div className="option-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={exportOptions.minify}
+                        onChange={(e) => setExportOptions(prev => ({
+                          ...prev,
+                          minify: e.target.checked
+                        }))}
+                      />
+                      Минифицировать код
+                    </label>
+                  </div>
+
+                  <div className="option-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={exportOptions.responsive}
+                        onChange={(e) => setExportOptions(prev => ({
+                          ...prev,
+                          responsive: e.target.checked
+                        }))}
+                      />
+                      Адаптивный дизайн
+                    </label>
+                  </div>
+                </div>
+
+                <div className="export-preview">
+                  <h3>Предпросмотр экспорта</h3>
+                  <div className="preview-stats">
+                    <div>Элементов: {project.containers.reduce((sum, container) => sum + container.elements.length, 0)}</div>
+                    <div>Контейнеров: {project.containers.length}</div>
+                    <div>Ресурсов: {exportProject(project, exportOptions).assets.length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  onClick={() => setShowExportDialog(false)}
+                  className="btn-secondary"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="btn-primary"
+                >
+                  📤 Экспортировать
+                </button>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Статус бар */}
+        <footer className="app-footer">
+          <div className="status-left">
+            <span className="status-mode">
+              {mode === 'edit' ? '✏️ Режим редактирования' : '👁️ Режим просмотра'}
+            </span>
+            <span className="status-viewport">
+              {project.settings.viewport === 'desktop' && '🖥️ Desktop'}
+              {project.settings.viewport === 'tablet' && '📱 Tablet'}
+              {project.settings.viewport === 'mobile' && '📱 Mobile'}
+            </span>
+          </div>
+
+          <div className="status-center">
+            {selectedElement && (
+              <span className="status-selection">
+                Выбран: {selectedElement.metadata.name} ({selectedElement.type})
+              </span>
+            )}
+            {!selectedElement && selectedContainer && (
+              <span className="status-selection">
+                Выбран контейнер: {selectedContainer.name}
+              </span>
+            )}
+            {!selectedElement && !selectedContainer && (
+              <span className="status-selection">
+                Выберите элемент для редактирования
+              </span>
+            )}
+          </div>
+
+          <div className="status-right">
+            <span className="status-help">
+              Ctrl+Z/Y - Отмена/Повтор • Tab - Режим • Delete - Удалить
+            </span>
+          </div>
+        </footer>
       </div>
-    </DndContext>
-  );
-}
-// Вспомогательная функция ВНЕ компонента
-const addComponentToContainer = (components: Component[], containerId: string, newComponent: Component): Component[] => {
-  return components.map(comp => {
-    if (comp.id === containerId) {
-      return {
-        ...comp,
-        children: [...(comp.children || []), newComponent]
-      };
-    }
-
-    if (comp.children) {
-      return {
-        ...comp,
-        children: addComponentToContainer(comp.children, containerId, newComponent)
-      };
-    }
-
-    return comp;
-  });
-};
-// Главный компонент с провайдерами
-function App() {
-  return (
-    <ThemeProvider>
-      <AppContent />
     </ThemeProvider>
   );
 }

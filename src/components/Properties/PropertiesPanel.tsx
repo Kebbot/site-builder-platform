@@ -1,839 +1,710 @@
-import React, { useState } from 'react';
-import { Component } from '../../types/types';
-import ZeroBlockEditor from '../../ZeroBlock/ZeroBlockEditor';
+import React, { useState, useCallback, useMemo } from 'react';
+import { BuilderElement, Container, PropertyGroup, Project } from '../../types/types';
+import { useTheme } from '../../contexts/ThemeContext';
 import './PropertiesPanel.css';
 
 interface PropertiesPanelProps {
-    component: Component | null;
-    onUpdateComponent: (component: Component) => void;
-    onDeleteComponent?: (componentId: string) => void;
-    onCopyComponent?: (component: Component) => void;
-    onDuplicateComponent?: (component: Component) => void;
+    selectedElement: BuilderElement | null;
+    selectedContainer: Container | null;
+    project: Project;
+    onElementUpdate: (elementId: string, updates: Partial<BuilderElement>) => void;
+    onContainerUpdate: (containerId: string, updates: Partial<Container>) => void;
+    onProjectUpdate: (updates: Partial<Project>) => void;
 }
 
-const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
-    component,
-    onUpdateComponent,
-    onDeleteComponent,
-    onCopyComponent,
-    onDuplicateComponent
+export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
+    selectedElement,
+    selectedContainer,
+    project,
+    onElementUpdate,
+    onContainerUpdate,
+    onProjectUpdate
 }) => {
-    const [showZeroBlockEditor, setShowZeroBlockEditor] = useState(false);
+    const { theme } = useTheme();
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['layout', 'typography']));
 
-    if (!component) {
+    // Группы свойств для элемента
+    const elementPropertyGroups = useMemo((): PropertyGroup[] => {
+        if (!selectedElement) return [];
+
+        const baseGroups: PropertyGroup[] = [
+            {
+                id: 'layout',
+                name: 'Макет',
+                icon: '📐',
+                properties: [
+                    {
+                        id: 'position-x',
+                        name: 'Позиция X',
+                        type: 'number',
+                        value: selectedElement.position.x,
+                        unit: 'px',
+                        min: 0,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'position-y',
+                        name: 'Позиция Y',
+                        type: 'number',
+                        value: selectedElement.position.y,
+                        unit: 'px',
+                        min: 0,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'width',
+                        name: 'Ширина',
+                        type: 'number',
+                        value: typeof selectedElement.position.width === 'number'
+                            ? selectedElement.position.width
+                            : parseInt(selectedElement.position.width as string),
+                        unit: 'px',
+                        min: 10,
+                        max: 2000,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'height',
+                        name: 'Высота',
+                        type: 'number',
+                        value: typeof selectedElement.position.height === 'number'
+                            ? selectedElement.position.height
+                            : parseInt(selectedElement.position.height as string),
+                        unit: 'px',
+                        min: 10,
+                        max: 2000,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'zIndex',
+                        name: 'Z-Index',
+                        type: 'number',
+                        value: selectedElement.position.zIndex,
+                        min: 0,
+                        max: 9999,
+                        category: 'layout'
+                    }
+                ]
+            },
+            {
+                id: 'typography',
+                name: 'Типография',
+                icon: '🔤',
+                properties: [
+                    {
+                        id: 'fontSize',
+                        name: 'Размер шрифта',
+                        type: 'number',
+                        value: selectedElement.style.fontSize || 16,
+                        unit: 'px',
+                        min: 8,
+                        max: 72,
+                        category: 'typography'
+                    },
+                    {
+                        id: 'fontWeight',
+                        name: 'Насыщенность',
+                        type: 'select',
+                        value: selectedElement.style.fontWeight || 'normal',
+                        options: [
+                            { label: 'Тонкий', value: '100' },
+                            { label: 'Светлый', value: '300' },
+                            { label: 'Обычный', value: 'normal' },
+                            { label: 'Средний', value: '500' },
+                            { label: 'Полужирный', value: '600' },
+                            { label: 'Жирный', value: 'bold' },
+                            { label: 'Черный', value: '900' }
+                        ],
+                        category: 'typography'
+                    },
+                    {
+                        id: 'textAlign',
+                        name: 'Выравнивание',
+                        type: 'select',
+                        value: selectedElement.style.textAlign || 'left',
+                        options: [
+                            { label: 'Слева', value: 'left' },
+                            { label: 'По центру', value: 'center' },
+                            { label: 'Справа', value: 'right' },
+                            { label: 'По ширине', value: 'justify' }
+                        ],
+                        category: 'typography'
+                    },
+                    {
+                        id: 'color',
+                        name: 'Цвет текста',
+                        type: 'color',
+                        value: selectedElement.style.color || theme.getColor('text'),
+                        category: 'typography'
+                    },
+                    {
+                        id: 'lineHeight',
+                        name: 'Межстрочный интервал',
+                        type: 'range',
+                        value: selectedElement.style.lineHeight || 1.5,
+                        min: 1,
+                        max: 3,
+                        step: 0.1,
+                        category: 'typography'
+                    }
+                ]
+            },
+            {
+                id: 'background',
+                name: 'Фон',
+                icon: '🎨',
+                properties: [
+                    {
+                        id: 'backgroundColor',
+                        name: 'Цвет фона',
+                        type: 'color',
+                        value: selectedElement.style.backgroundColor || 'transparent',
+                        category: 'background'
+                    },
+                    {
+                        id: 'backgroundImage',
+                        name: 'Фоновое изображение',
+                        type: 'image',
+                        value: selectedElement.style.backgroundImage || '',
+                        category: 'background'
+                    },
+                    {
+                        id: 'opacity',
+                        name: 'Прозрачность',
+                        type: 'range',
+                        value: selectedElement.style.opacity || 1,
+                        min: 0,
+                        max: 1,
+                        step: 0.1,
+                        category: 'background'
+                    }
+                ]
+            },
+            {
+                id: 'border',
+                name: 'Граница',
+                icon: '🔲',
+                properties: [
+                    {
+                        id: 'border',
+                        name: 'Граница',
+                        type: 'text',
+                        value: selectedElement.style.border || '',
+                        category: 'border'
+                    },
+                    {
+                        id: 'borderRadius',
+                        name: 'Скругление углов',
+                        type: 'text',
+                        value: selectedElement.style.borderRadius || '0px',
+                        category: 'border'
+                    },
+                    {
+                        id: 'borderColor',
+                        name: 'Цвет границы',
+                        type: 'color',
+                        value: selectedElement.style.borderColor || '#d1d5db',
+                        category: 'border'
+                    }
+                ]
+            },
+            {
+                id: 'effects',
+                name: 'Эффекты',
+                icon: '✨',
+                properties: [
+                    {
+                        id: 'boxShadow',
+                        name: 'Тень',
+                        type: 'shadow',
+                        value: selectedElement.style.boxShadow || '',
+                        category: 'effects'
+                    },
+                    {
+                        id: 'transform',
+                        name: 'Трансформация',
+                        type: 'text',
+                        value: selectedElement.style.transform || '',
+                        category: 'effects'
+                    },
+                    {
+                        id: 'transition',
+                        name: 'Переход',
+                        type: 'text',
+                        value: selectedElement.style.transition || '',
+                        category: 'effects'
+                    }
+                ]
+            },
+            {
+                id: 'advanced',
+                name: 'Дополнительно',
+                icon: '⚙️',
+                properties: [
+                    {
+                        id: 'className',
+                        name: 'CSS класс',
+                        type: 'text',
+                        value: selectedElement.props?.className || '',
+                        category: 'advanced'
+                    },
+                    {
+                        id: 'id',
+                        name: 'ID элемента',
+                        type: 'text',
+                        value: selectedElement.props?.id || '',
+                        category: 'advanced'
+                    },
+                    {
+                        id: 'customCSS',
+                        name: 'Пользовательский CSS',
+                        type: 'text',
+                        value: selectedElement.props?.customCSS || '',
+                        category: 'advanced'
+                    }
+                ]
+            }
+        ];
+
+        // Добавляем специфичные свойства для разных типов элементов
+        if (selectedElement.type === 'button') {
+            baseGroups.find(g => g.id === 'typography')?.properties.push(
+                {
+                    id: 'buttonVariant',
+                    name: 'Вариант кнопки',
+                    type: 'select',
+                    value: selectedElement.props?.variant || 'primary',
+                    options: [
+                        { label: 'Основная', value: 'primary' },
+                        { label: 'Вторичная', value: 'secondary' },
+                        { label: 'Текстовая', value: 'text' },
+                        { label: 'С обводкой', value: 'outline' }
+                    ],
+                    category: 'typography'
+                }
+            );
+        }
+
+        if (selectedElement.type === 'image') {
+            baseGroups.find(g => g.id === 'advanced')?.properties.unshift(
+                {
+                    id: 'altText',
+                    name: 'Alt текст',
+                    type: 'text',
+                    value: selectedElement.props?.alt || '',
+                    category: 'advanced'
+                },
+                {
+                    id: 'objectFit',
+                    name: 'Обрезка изображения',
+                    type: 'select',
+                    value: selectedElement.style.objectFit || 'cover',
+                    options: [
+                        { label: 'Заполнить', value: 'fill' },
+                        { label: 'Обрезать', value: 'cover' },
+                        { label: 'Вписать', value: 'contain' },
+                        { label: 'По размеру', value: 'none' },
+                        { label: 'Масштабировать', value: 'scale-down' }
+                    ],
+                    category: 'advanced'
+                }
+            );
+        }
+
+        return baseGroups;
+    }, [selectedElement, theme]);
+
+    // Группы свойств для контейнера
+    const containerPropertyGroups = useMemo((): PropertyGroup[] => {
+        if (!selectedContainer) return [];
+
+        return [
+            {
+                id: 'container-layout',
+                name: 'Макет контейнера',
+                icon: '📐',
+                properties: [
+                    {
+                        id: 'containerWidth',
+                        name: 'Ширина',
+                        type: 'text',
+                        value: selectedContainer.style.width,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'containerHeight',
+                        name: 'Высота',
+                        type: 'text',
+                        value: selectedContainer.style.height,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'minHeight',
+                        name: 'Минимальная высота',
+                        type: 'text',
+                        value: selectedContainer.style.minHeight,
+                        category: 'layout'
+                    }
+                ]
+            },
+            {
+                id: 'container-background',
+                name: 'Фон контейнера',
+                icon: '🎨',
+                properties: [
+                    {
+                        id: 'containerBackgroundColor',
+                        name: 'Цвет фона',
+                        type: 'color',
+                        value: selectedContainer.style.backgroundColor,
+                        category: 'background'
+                    },
+                    {
+                        id: 'containerBackgroundImage',
+                        name: 'Фоновое изображение',
+                        type: 'image',
+                        value: selectedContainer.style.backgroundImage || '',
+                        category: 'background'
+                    }
+                ]
+            }
+        ];
+    }, [selectedContainer]);
+
+    // Группы свойств для проекта
+    const projectPropertyGroups = useMemo((): PropertyGroup[] => {
+        return [
+            {
+                id: 'page-settings',
+                name: 'Настройки страницы',
+                icon: '📄',
+                properties: [
+                    {
+                        id: 'pageWidth',
+                        name: 'Ширина страницы',
+                        type: 'select',
+                        value: project.settings.pageWidth,
+                        options: [
+                            { label: 'Полная ширина', value: '100%' },
+                            { label: '1200px', value: '1200px' },
+                            { label: '992px', value: '992px' },
+                            { label: '768px', value: '768px' }
+                        ],
+                        category: 'layout'
+                    },
+                    {
+                        id: 'pageBackground',
+                        name: 'Фон страницы',
+                        type: 'color',
+                        value: project.settings.pageBackground,
+                        category: 'background'
+                    },
+                    {
+                        id: 'pageTitle',
+                        name: 'Заголовок страницы',
+                        type: 'text',
+                        value: project.settings.title,
+                        category: 'content'
+                    }
+                ]
+            },
+            {
+                id: 'builder-settings',
+                name: 'Настройки конструктора',
+                icon: '⚙️',
+                properties: [
+                    {
+                        id: 'gridEnabled',
+                        name: 'Показывать сетку',
+                        type: 'boolean',
+                        value: project.settings.grid,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'snapEnabled',
+                        name: 'Включить привязку',
+                        type: 'boolean',
+                        value: project.settings.snap,
+                        category: 'layout'
+                    },
+                    {
+                        id: 'viewport',
+                        name: 'Разрешение',
+                        type: 'select',
+                        value: project.settings.viewport,
+                        options: [
+                            { label: 'Десктоп', value: 'desktop' },
+                            { label: 'Планшет', value: 'tablet' },
+                            { label: 'Мобильный', value: 'mobile' }
+                        ],
+                        category: 'layout'
+                    }
+                ]
+            }
+        ];
+    }, [project]);
+
+    // Обработчик изменения свойства
+    const handlePropertyChange = useCallback((propertyId: string, value: any) => {
+        if (selectedElement) {
+            // Определяем категорию свойства и обновляем соответствующий объект
+            if (propertyId.startsWith('position-')) {
+                const positionField = propertyId.replace('position-', '');
+                onElementUpdate(selectedElement.id, {
+                    position: { ...selectedElement.position, [positionField]: value }
+                });
+            } else if (['width', 'height', 'zIndex'].includes(propertyId)) {
+                onElementUpdate(selectedElement.id, {
+                    position: { ...selectedElement.position, [propertyId]: value }
+                });
+            } else {
+                onElementUpdate(selectedElement.id, {
+                    style: { ...selectedElement.style, [propertyId]: value }
+                });
+            }
+        } else if (selectedContainer) {
+            if (propertyId.startsWith('container')) {
+                const styleField = propertyId.replace('container', '').replace(/^[A-Z]/, match => match.toLowerCase());
+                onContainerUpdate(selectedContainer.id, {
+                    style: { ...selectedContainer.style, [styleField]: value }
+                });
+            }
+        } else {
+            // Обновление настроек проекта
+            if (propertyId === 'pageWidth' || propertyId === 'pageBackground' || propertyId === 'pageTitle') {
+                const settingsField = propertyId.replace('page', '').replace(/^[A-Z]/, match => match.toLowerCase());
+                onProjectUpdate({
+                    settings: { ...project.settings, [settingsField]: value }
+                });
+            } else if (propertyId === 'gridEnabled' || propertyId === 'snapEnabled' || propertyId === 'viewport') {
+                const settingsField = propertyId.replace('Enabled', '').toLowerCase();
+                onProjectUpdate({
+                    settings: { ...project.settings, [settingsField]: value }
+                });
+            }
+        }
+    }, [selectedElement, selectedContainer, project, onElementUpdate, onContainerUpdate, onProjectUpdate]);
+
+    // Переключение раскрытия группы
+    const toggleGroup = useCallback((groupId: string) => {
+        setExpandedGroups(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(groupId)) {
+                newSet.delete(groupId);
+            } else {
+                newSet.add(groupId);
+            }
+            return newSet;
+        });
+    }, []);
+
+    // Рендер контрола для свойства
+    const renderPropertyControl = (property: any) => {
+        const commonProps = {
+            key: property.id,
+            value: property.value,
+            onChange: (value: any) => handlePropertyChange(property.id, value),
+            className: 'property-control'
+        };
+
+        switch (property.type) {
+            case 'text':
+                return (
+                    <input
+                        type="text"
+                        {...commonProps}
+                        placeholder={property.name}
+                    />
+                );
+
+            case 'number':
+                return (
+                    <div className="number-control">
+                        <input
+                            type="number"
+                            {...commonProps}
+                            min={property.min}
+                            max={property.max}
+                            step={property.step}
+                        />
+                        {property.unit && <span className="property-unit">{property.unit}</span>}
+                    </div>
+                );
+
+            case 'color':
+                return (
+                    <div className="color-control">
+                        <input
+                            type="color"
+                            {...commonProps}
+                        />
+                        <span className="color-value">{property.value}</span>
+                    </div>
+                );
+
+            case 'select':
+                return (
+                    <select {...commonProps}>
+                        {property.options?.map((option: any) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                );
+
+            case 'boolean':
+                return (
+                    <label className="boolean-control">
+                        <input
+                            type="checkbox"
+                            checked={!!property.value}
+                            onChange={(e) => commonProps.onChange(e.target.checked)}
+                        />
+                        <span className="boolean-slider"></span>
+                    </label>
+                );
+
+            case 'range':
+                return (
+                    <div className="range-control">
+                        <input
+                            type="range"
+                            {...commonProps}
+                            min={property.min}
+                            max={property.max}
+                            step={property.step}
+                        />
+                        <span className="range-value">{property.value}</span>
+                    </div>
+                );
+
+            case 'image':
+                return (
+                    <div className="image-control">
+                        <input
+                            type="text"
+                            {...commonProps}
+                            placeholder="URL изображения"
+                        />
+                        <button className="browse-button">Обзор</button>
+                    </div>
+                );
+
+            default:
+                return (
+                    <input
+                        type="text"
+                        {...commonProps}
+                        placeholder={property.name}
+                    />
+                );
+        }
+    };
+
+    // Рендер групп свойств
+    const renderPropertyGroups = (groups: PropertyGroup[]) => {
+        return groups.map(group => (
+            <div key={group.id} className="property-group">
+                <div
+                    className="property-group-header"
+                    onClick={() => toggleGroup(group.id)}
+                >
+                    <span className="group-icon">{group.icon}</span>
+                    <span className="group-name">{group.name}</span>
+                    <span className="group-toggle">
+                        {expandedGroups.has(group.id) ? '▼' : '►'}
+                    </span>
+                </div>
+
+                {expandedGroups.has(group.id) && (
+                    <div className="property-group-content">
+                        {group.properties.map(property => (
+                            <div key={property.id} className="property-item">
+                                <label className="property-label">
+                                    {property.name}
+                                </label>
+                                <div className="property-control-wrapper">
+                                    {renderPropertyControl(property)}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        ));
+    };
+
+    // Определяем, что показывать в панели
+    const getPanelContent = () => {
+        if (selectedElement) {
+            return (
+                <>
+                    <div className="properties-header">
+                        <div className="element-info">
+                            <span className="element-icon">{selectedElement.metadata.icon}</span>
+                            <div className="element-details">
+                                <h3 className="element-name">{selectedElement.metadata.name}</h3>
+                                <span className="element-type">{selectedElement.type}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {renderPropertyGroups(elementPropertyGroups)}
+                </>
+            );
+        }
+
+        if (selectedContainer) {
+            return (
+                <>
+                    <div className="properties-header">
+                        <div className="element-info">
+                            <span className="element-icon">📦</span>
+                            <div className="element-details">
+                                <h3 className="element-name">{selectedContainer.name}</h3>
+                                <span className="element-type">Контейнер ({selectedContainer.type})</span>
+                            </div>
+                        </div>
+                    </div>
+                    {renderPropertyGroups(containerPropertyGroups)}
+                </>
+            );
+        }
+
         return (
-            <div className="properties-panel">
-                <div className="properties-empty">
-                    <div className="empty-icon">🎯</div>
-                    <h3>Выберите элемент</h3>
-                    <p>Кликните на любой элемент в рабочей области чтобы редактировать его свойства</p>
-                </div>
-            </div>
-        );
-    }
-
-    const handleTextChange = (text: string) => {
-        onUpdateComponent({
-            ...component,
-            props: {
-                ...component.props,
-                text: text
-            }
-        });
-    };
-
-    const handleStyleChange = (property: string, value: string) => {
-        onUpdateComponent({
-            ...component,
-            styles: {
-                ...component.styles,
-                [property]: value
-            }
-        });
-    };
-
-    const handleDelete = () => {
-        if (onDeleteComponent && component.id) {
-            onDeleteComponent(component.id);
-        }
-    };
-
-    const handleCopy = () => {
-        if (onCopyComponent && component) {
-            onCopyComponent(component);
-        }
-    };
-
-    const handleDuplicate = () => {
-        if (onDuplicateComponent && component) {
-            onDuplicateComponent(component);
-        }
-    };
-
-    const handleZeroBlockSave = (html: string, css: string, js: string) => {
-        onUpdateComponent({
-            ...component,
-            props: {
-                ...component.props,
-                customHTML: html,
-                customCSS: css,
-                customJS: js
-            }
-        });
-        setShowZeroBlockEditor(false);
-    };
-    // Специфические свойства для Section (ИСПРАВЛЕННАЯ ВЕРСИЯ)
-    const renderSectionProperties = () => (
-        <div className="property-section">
-            <h4>📦 Настройки секции</h4>
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#f7fafc'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Высота</label>
-                    <select
-                        value={component.styles.height || 'auto'}
-                        onChange={(e) => handleStyleChange('height', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="auto">Авто</option>
-                        <option value="100px">100px</option>
-                        <option value="150px">150px</option>
-                        <option value="200px">200px</option>
-                        <option value="300px">300px</option>
-                        <option value="400px">400px</option>
-                        <option value="500px">500px</option>
-                    </select>
-                </div>
-
-                <div className="property-group">
-                    <label>Направление flex</label>
-                    <select
-                        value={component.styles.flexDirection || 'column'}
-                        onChange={(e) => handleStyleChange('flexDirection', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="column">⬇️ Колонка</option>
-                        <option value="row">➡️ Ряд</option>
-                        <option value="column-reverse">⬆️ Колонка (обратно)</option>
-                        <option value="row-reverse">⬅️ Ряд (обратно)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="property-group">
-                <label>Выравнивание элементов</label>
-                <select
-                    value={component.styles.alignItems || 'stretch'}
-                    onChange={(e) => handleStyleChange('alignItems', e.target.value)}
-                    className="property-input"
-                >
-                    <option value="stretch">📏 Растянуть</option>
-                    <option value="flex-start">⬆️ В начале</option>
-                    <option value="center">⏺️ По центру</option>
-                    <option value="flex-end">⬇️ В конце</option>
-                </select>
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для Grid (ИСПРАВЛЕННАЯ ВЕРСИЯ)
-    const renderGridProperties = () => (
-        <div className="property-section">
-            <h4>🔲 Настройки Grid сетки</h4>
-
-            <div className="property-group">
-                <label>Колонки сетки</label>
-                <select
-                    value={component.styles.gridTemplateColumns || 'repeat(2, 1fr)'}
-                    onChange={(e) => handleStyleChange('gridTemplateColumns', e.target.value)}
-                    className="property-input"
-                >
-                    <option value="1fr">1 колонка</option>
-                    <option value="repeat(2, 1fr)">2 колонки</option>
-                    <option value="repeat(3, 1fr)">3 колонки</option>
-                    <option value="repeat(4, 1fr)">4 колонки</option>
-                    <option value="repeat(auto-fit, minmax(200px, 1fr))">Авто-подбор</option>
-                </select>
-            </div>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Расстояние между элементами</label>
-                    <select
-                        value={component.styles.gridGap || '10px'}
-                        onChange={(e) => handleStyleChange('gridGap', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="5px">5px - Маленькое</option>
-                        <option value="10px">10px - Среднее</option>
-                        <option value="15px">15px - Большое</option>
-                        <option value="20px">20px - Очень большое</option>
-                    </select>
-                </div>
-
-                <div className="property-group">
-                    <label>Высота</label>
-                    <select
-                        value={component.styles.height || 'auto'}
-                        onChange={(e) => handleStyleChange('height', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="auto">Авто</option>
-                        <option value="150px">150px</option>
-                        <option value="200px">200px</option>
-                        <option value="250px">250px</option>
-                        <option value="300px">300px</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#fff5f5'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для Flex (ИСПРАВЛЕННАЯ ВЕРСИЯ)
-    const renderFlexProperties = () => (
-        <div className="property-section">
-            <h4>📏 Настройки Flex контейнера</h4>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Направление</label>
-                    <select
-                        value={component.styles.flexDirection || 'row'}
-                        onChange={(e) => handleStyleChange('flexDirection', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="row">➡️ Горизонтально (row)</option>
-                        <option value="column">⬇️ Вертикально (column)</option>
-                        <option value="row-reverse">⬅️ Горизонтально (обратно)</option>
-                        <option value="column-reverse">⬆️ Вертикально (обратно)</option>
-                    </select>
-                </div>
-
-                <div className="property-group">
-                    <label>Выравнивание по главной оси</label>
-                    <select
-                        value={component.styles.justifyContent || 'center'}
-                        onChange={(e) => handleStyleChange('justifyContent', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="flex-start">⬅️ В начале</option>
-                        <option value="center">⏺️ По центру</option>
-                        <option value="flex-end">➡️ В конце</option>
-                        <option value="space-between">↔️ Равномерно</option>
-                        <option value="space-around">⏺️↔️ С отступами</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Выравнивание по поперечной оси</label>
-                    <select
-                        value={component.styles.alignItems || 'center'}
-                        onChange={(e) => handleStyleChange('alignItems', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="stretch">📏 Растянуть</option>
-                        <option value="flex-start">⬆️ В начале</option>
-                        <option value="center">⏺️ По центру</option>
-                        <option value="flex-end">⬇️ В конце</option>
-                    </select>
-                </div>
-
-                <div className="property-group">
-                    <label>Перенос элементов</label>
-                    <select
-                        value={component.styles.flexWrap || 'nowrap'}
-                        onChange={(e) => handleStyleChange('flexWrap', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="nowrap">🚫 Без переноса</option>
-                        <option value="wrap">↩️ С переносом</option>
-                        <option value="wrap-reverse">🔄 Обратный перенос</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="property-group">
-                <label>Высота</label>
-                <select
-                    value={component.styles.height || 'auto'}
-                    onChange={(e) => handleStyleChange('height', e.target.value)}
-                    className="property-input"
-                >
-                    <option value="auto">Авто</option>
-                    <option value="100px">100px</option>
-                    <option value="150px">150px</option>
-                    <option value="200px">200px</option>
-                </select>
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#f0fff4'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-        </div>
-    );
-
-    const getComponentIcon = (type: string) => {
-        switch (type) {
-            case 'text': return '📝';
-            case 'button': return '🔘';
-            case 'image': return '🖼️';
-            case 'header': return '🔝';
-            case 'footer': return '🔻';
-            case 'card': return '🎴';
-            case 'form': return '📋';
-            case 'input': return '📝';
-            case 'zeroblock': return '🎛️';
-            default: return '⚙️';
-        }
-    };
-
-    // Общие свойства для всех элементов
-    const renderCommonProperties = () => (
-        <div className="property-section">
-            <h4>📐 Размер и отступы</h4>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Ширина</label>
-                    <select
-                        value={component.styles.width || 'auto'}
-                        onChange={(e) => handleStyleChange('width', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="auto">Авто</option>
-                        <option value="100%">Полная ширина</option>
-                        <option value="50%">50% ширины</option>
-                        <option value="300px">Фиксированная (300px)</option>
-                    </select>
-                </div>
-
-                <div className="property-group">
-                    <label>Выравнивание</label>
-                    <select
-                        value={component.styles.textAlign || 'left'}
-                        onChange={(e) => handleStyleChange('textAlign', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="left">⬅️ Слева</option>
-                        <option value="center">⏺️ По центру</option>
-                        <option value="right">➡️ Справа</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Внутренние отступы</label>
-                    <input
-                        type="text"
-                        value={component.styles.padding || '10px'}
-                        onChange={(e) => handleStyleChange('padding', e.target.value)}
-                        className="property-input"
-                        placeholder="10px"
-                    />
-                </div>
-
-                <div className="property-group">
-                    <label>Внешние отступы</label>
-                    <input
-                        type="text"
-                        value={component.styles.margin || '0px'}
-                        onChange={(e) => handleStyleChange('margin', e.target.value)}
-                        className="property-input"
-                        placeholder="0px"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для текста
-    const renderTextProperties = () => (
-        <div className="property-section">
-            <h4>📝 Содержимое</h4>
-            <div className="property-group">
-                <label>Текст элемента</label>
-                <textarea
-                    value={component.props.text || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    rows={4}
-                    placeholder="Введите текст..."
-                />
-            </div>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Размер шрифта</label>
-                    <select
-                        value={component.styles.fontSize || '16px'}
-                        onChange={(e) => handleStyleChange('fontSize', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="12px">12px - Мелкий</option>
-                        <option value="14px">14px - Обычный</option>
-                        <option value="16px">16px - Средний</option>
-                        <option value="18px">18px - Крупный</option>
-                        <option value="24px">24px - Заголовок</option>
-                        <option value="32px">32px - Большой заголовок</option>
-                    </select>
-                </div>
-
-                <div className="property-group">
-                    <label>Цвет текста</label>
-                    <input
-                        type="color"
-                        value={component.styles.color || '#000000'}
-                        onChange={(e) => handleStyleChange('color', e.target.value)}
-                        className="property-input"
-                    />
-                </div>
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#ffffff'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для кнопки
-    const renderButtonProperties = () => (
-        <div className="property-section">
-            <h4>🔘 Настройки кнопки</h4>
-            <div className="property-group">
-                <label>Текст кнопки</label>
-                <input
-                    type="text"
-                    value={component.props.text || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    placeholder="Текст кнопки..."
-                />
-            </div>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Цвет фона</label>
-                    <input
-                        type="color"
-                        value={component.styles.backgroundColor || '#4299e1'}
-                        onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                        className="property-input"
-                    />
-                </div>
-
-                <div className="property-group">
-                    <label>Цвет текста</label>
-                    <input
-                        type="color"
-                        value={component.styles.color || '#ffffff'}
-                        onChange={(e) => handleStyleChange('color', e.target.value)}
-                        className="property-input"
-                    />
-                </div>
-            </div>
-
-            <div className="property-group">
-                <label>Скругление углов</label>
-                <select
-                    value={component.styles.borderRadius || '4px'}
-                    onChange={(e) => handleStyleChange('borderRadius', e.target.value)}
-                    className="property-input"
-                >
-                    <option value="0px">Без скругления</option>
-                    <option value="4px">Маленькое</option>
-                    <option value="8px">Среднее</option>
-                    <option value="20px">Большое</option>
-                    <option value="50%">Круглая</option>
-                </select>
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для изображения
-    const renderImageProperties = () => (
-        <div className="property-section">
-            <h4>🖼️ Настройки изображения</h4>
-            <div className="property-group">
-                <label>Подпись изображения</label>
-                <input
-                    type="text"
-                    value={component.props.text || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    placeholder="Описание изображения..."
-                />
-            </div>
-
-            <div className="property-row">
-                <div className="property-group">
-                    <label>Высота блока</label>
-                    <select
-                        value={component.styles.height || '200px'}
-                        onChange={(e) => handleStyleChange('height', e.target.value)}
-                        className="property-input"
-                    >
-                        <option value="150px">150px</option>
-                        <option value="200px">200px</option>
-                        <option value="250px">250px</option>
-                        <option value="300px">300px</option>
-                        <option value="auto">Авто</option>
-                    </select>
-                </div>
-
-                <div className="property-group">
-                    <label>Цвет фона</label>
-                    <input
-                        type="color"
-                        value={component.styles.backgroundColor || '#f7fafc'}
-                        onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                        className="property-input"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для header
-    const renderHeaderProperties = () => (
-        <div className="property-section">
-            <h4>🔝 Настройки шапки</h4>
-            <div className="property-group">
-                <label>Текст логотипа</label>
-                <input
-                    type="text"
-                    value={component.props.text || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    placeholder="Название сайта..."
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#2d3748'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Цвет текста</label>
-                <input
-                    type="color"
-                    value={component.styles.color || '#ffffff'}
-                    onChange={(e) => handleStyleChange('color', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для footer
-    const renderFooterProperties = () => (
-        <div className="property-section">
-            <h4>🔻 Настройки подвала</h4>
-            <div className="property-group">
-                <label>Текст копирайта</label>
-                <input
-                    type="text"
-                    value={component.props.text || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    placeholder="Текст копирайта..."
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#4a5568'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Цвет текста</label>
-                <input
-                    type="color"
-                    value={component.styles.color || '#ffffff'}
-                    onChange={(e) => handleStyleChange('color', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для card
-    const renderCardProperties = () => (
-        <div className="property-section">
-            <h4>🎴 Настройки карточки</h4>
-            <div className="property-group">
-                <label>Заголовок карточки</label>
-                <input
-                    type="text"
-                    value={component.props.text || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    placeholder="Заголовок карточки..."
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#ffffff'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Скругление углов</label>
-                <select
-                    value={component.styles.borderRadius || '8px'}
-                    onChange={(e) => handleStyleChange('borderRadius', e.target.value)}
-                    className="property-input"
-                >
-                    <option value="0px">Без скругления</option>
-                    <option value="4px">Маленькое</option>
-                    <option value="8px">Среднее</option>
-                    <option value="16px">Большое</option>
-                </select>
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для form
-    const renderFormProperties = () => (
-        <div className="property-section">
-            <h4>📋 Настройки формы</h4>
-            <div className="property-group">
-                <label>Заголовок формы</label>
-                <input
-                    type="text"
-                    value={component.props.text || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    placeholder="Заголовок формы..."
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#ffffff'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Скругление углов</label>
-                <select
-                    value={component.styles.borderRadius || '8px'}
-                    onChange={(e) => handleStyleChange('borderRadius', e.target.value)}
-                    className="property-input"
-                >
-                    <option value="0px">Без скругления</option>
-                    <option value="4px">Маленькое</option>
-                    <option value="8px">Среднее</option>
-                    <option value="16px">Большое</option>
-                </select>
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для input
-    const renderInputProperties = () => (
-        <div className="property-section">
-            <h4>📝 Настройки поля ввода</h4>
-            <div className="property-group">
-                <label>Подсказка (placeholder)</label>
-                <input
-                    type="text"
-                    value={component.props.placeholder || ''}
-                    onChange={(e) => handleTextChange(e.target.value)}
-                    className="property-input"
-                    placeholder="Текст подсказки..."
-                />
-            </div>
-
-            <div className="property-group">
-                <label>Цвет фона</label>
-                <input
-                    type="color"
-                    value={component.styles.backgroundColor || '#ffffff'}
-                    onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
-                    className="property-input"
-                />
-            </div>
-        </div>
-    );
-
-    // Специфические свойства для ZeroBlock
-    const renderZeroBlockProperties = () => (
-        <div className="property-section">
-            <h4>🎛️ ZeroBlock Редактор</h4>
-
-            <div className="property-group">
-                <label>Кастомный HTML/CSS/JS блок</label>
-                <button
-                    onClick={() => setShowZeroBlockEditor(true)}
-                    className="property-input"
-                    style={{
-                        background: 'var(--primary-gradient)',
-                        color: 'white',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '12px',
-                        fontWeight: '500'
-                    }}
-                >
-                    {component.props.customHTML ? '✏️ Редактировать код' : '🎛️ Открыть редактор'}
-                </button>
-            </div>
-
-            {component.props.customHTML && (
-                <div className="property-group">
-                    <label>Статус блока</label>
-                    <div style={{
-                        padding: '8px 12px',
-                        background: '#48bb78',
-                        color: 'white',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        fontWeight: '500'
-                    }}>
-                        ✅ Блок содержит кастомный код
+            <>
+                <div className="properties-header">
+                    <div className="element-info">
+                        <span className="element-icon">📄</span>
+                        <div className="element-details">
+                            <h3 className="element-name">Настройки проекта</h3>
+                            <span className="element-type">{project.name}</span>
+                        </div>
                     </div>
                 </div>
-            )}
-
-            {showZeroBlockEditor && (
-                <ZeroBlockEditor
-                    initialHTML={component.props.customHTML || ''}
-                    initialCSS={component.props.customCSS || ''}
-                    initialJS={component.props.customJS || ''}
-                    onSave={handleZeroBlockSave}
-                    onClose={() => setShowZeroBlockEditor(false)}
-                />
-            )}
-        </div>
-    );
+                {renderPropertyGroups(projectPropertyGroups)}
+            </>
+        );
+    };
 
     return (
         <div className="properties-panel">
-            <div className="properties-header">
-                <div className="component-title">
-                    <span className="component-icon">{getComponentIcon(component.type)}</span>
-                    <div>
-                        <h3>{getComponentTypeName(component.type)}</h3>
-                        <span className="component-id">ID: {component.id.slice(0, 8)}</span>
-                    </div>
-                </div>
-                <div className="component-actions">
-                    <button
-                        className="component-action-btn"
-                        onClick={handleCopy}
-                        title="Копировать (Ctrl+C)"
-                    >
-                        📋
-                    </button>
-                    <button
-                        className="component-action-btn"
-                        onClick={handleDuplicate}
-                        title="Дублировать (Ctrl+D)"
-                    >
-                        🎭
-                    </button>
-                    {onDeleteComponent && (
-                        <button
-                            className="component-action-btn delete"
-                            onClick={handleDelete}
-                            title="Удалить"
-                        >
-                            🗑️
-                        </button>
-                    )}
-                </div>
+            <div className="properties-content">
+                {getPanelContent()}
             </div>
 
-            {renderCommonProperties()}
-
-            {component.type === 'text' && renderTextProperties()}
-            {component.type === 'button' && renderButtonProperties()}
-            {component.type === 'image' && renderImageProperties()}
-            {component.type === 'header' && renderHeaderProperties()}
-            {component.type === 'footer' && renderFooterProperties()}
-            {component.type === 'card' && renderCardProperties()}
-            {component.type === 'form' && renderFormProperties()}
-            {component.type === 'input' && renderInputProperties()}
-            {component.type === 'zeroblock' && renderZeroBlockProperties()}
-            {component.type === 'section' && renderSectionProperties()}
-            {component.type === 'grid' && renderGridProperties()}
-            {component.type === 'flex' && renderFlexProperties()}
+            {/* Состояние, когда ничего не выбрано */}
+            {!selectedElement && !selectedContainer && (
+                <div className="properties-empty">
+                    <div className="empty-icon">⚙️</div>
+                    <div className="empty-text">Выберите элемент для редактирования</div>
+                    <div className="empty-hint">
+                        Кликните на любой элемент на холсте, чтобы увидеть его свойства
+                    </div>
+                </div>
+            )}
         </div>
     );
-};
-
-// Вспомогательные функции
-const getComponentTypeName = (type: string) => {
-    switch (type) {
-        case 'text': return 'Текстовый блок';
-        case 'button': return 'Кнопка';
-        case 'image': return 'Изображение';
-        case 'header': return 'Шапка сайта';
-        case 'footer': return 'Подвал сайта';
-        case 'card': return 'Карточка';
-        case 'form': return 'Форма';
-        case 'input': return 'Поле ввода';
-        case 'zeroblock': return 'ZeroBlock';
-        case 'section': return 'Секция';
-        case 'grid': return 'Grid сетка';
-        case 'flex': return 'Flex контейнер';
-        default: return 'Элемент';
-    }
 };
 
 export default PropertiesPanel;

@@ -1,50 +1,306 @@
-import React from 'react';
-import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+import React, { useCallback, useState } from 'react';
+import { PaletteItem as PaletteItemType } from '../../types/types';
+import { useTheme } from '../../contexts/ThemeContext';
 import './PaletteItem.css';
 
 interface PaletteItemProps {
-    type: string;
-    label: string;
-    emoji: string;
-    description: string;
-    color: string;
+    item: PaletteItemType;
+    onDragStart: (elementType: string, elementData: any) => void;
+    onDragEnd: () => void;
 }
 
-const PaletteItem: React.FC<PaletteItemProps> = ({
-    type,
-    label,
-    emoji,
-    description,
-    color
+export const PaletteItem: React.FC<PaletteItemProps> = ({
+    item,
+    onDragStart,
+    onDragEnd
 }) => {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-        id: `palette-${type}`,
-        data: { type } // ← ВАЖНО: data должна содержать type
-    });
+    const [isDragging, setIsDragging] = useState(false);
+    const { theme } = useTheme();
 
-    const style = {
-        transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.6 : 1,
-        '--accent-color': color
-    } as React.CSSProperties;
+    // Обработчик начала перетаскивания
+    const handleDragStart = useCallback((e: React.DragEvent) => {
+        e.dataTransfer.setData('builder/element', JSON.stringify({
+            type: item.element.type,
+            data: item.element
+        }));
+
+        e.dataTransfer.effectAllowed = 'copy';
+
+        setIsDragging(true);
+        onDragStart(item.element.type || item.id, item.element);
+    }, [item, onDragStart]);
+
+    // Обработчик окончания перетаскивания
+    const handleDragEnd = useCallback(() => {
+        setIsDragging(false);
+        onDragEnd();
+    }, [onDragEnd]);
+
+    // Обработчик клика для быстрого добавления
+    const handleClick = useCallback(() => {
+        // Можно добавить логику для быстрого добавления элемента в центр активного контейнера
+        console.log('Quick add element:', item.name);
+    }, [item]);
+
+    // Рендер предпросмотра элемента
+    const renderElementPreview = () => {
+        const elementStyle: React.CSSProperties = {
+            ...item.element.style,
+            width: '100%',
+            height: '60px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px',
+            borderRadius: theme.getBorderRadius('md'),
+            border: `1px solid ${theme.getColor('border')}`,
+            backgroundColor: theme.getColor('surface'),
+            color: theme.getColor('text'),
+            pointerEvents: 'none',
+            overflow: 'hidden'
+        };
+
+        switch (item.element.type) {
+            case 'text':
+                return (
+                    <div style={elementStyle}>
+                        <span style={{
+                            fontSize: '14px',
+                            color: theme.getColor('text'),
+                            fontFamily: 'inherit'
+                        }}>
+                            {item.element.content || 'Текст'}
+                        </span>
+                    </div>
+                );
+
+            case 'heading':
+                return (
+                    <div style={elementStyle}>
+                        <h3 style={{
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            color: theme.getColor('text'),
+                            margin: 0,
+                            fontFamily: 'inherit'
+                        }}>
+                            {item.element.content || 'Заголовок'}
+                        </h3>
+                    </div>
+                );
+
+            case 'button':
+                return (
+                    <div style={elementStyle}>
+                        <button
+                            style={{
+                                backgroundColor: theme.getColor('primary'),
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: theme.getBorderRadius('sm'),
+                                padding: '8px 16px',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                            disabled
+                        >
+                            {item.element.content || 'Кнопка'}
+                        </button>
+                    </div>
+                );
+
+            case 'image':
+                return (
+                    <div style={elementStyle}>
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                background: `linear-gradient(45deg, ${theme.getColor('surface')}, ${theme.getColor('border')})`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: theme.getColor('textSecondary'),
+                                fontSize: '12px'
+                            }}
+                        >
+                            🖼️ Изображение
+                        </div>
+                    </div>
+                );
+
+            case 'container':
+                return (
+                    <div style={elementStyle}>
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                border: `2px dashed ${theme.getColor('border')}`,
+                                borderRadius: theme.getBorderRadius('md'),
+                                backgroundColor: theme.getColor('background'),
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: theme.getColor('textSecondary'),
+                                fontSize: '12px'
+                            }}
+                        >
+                            📦 Контейнер
+                        </div>
+                    </div>
+                );
+
+            case 'section':
+                return (
+                    <div style={elementStyle}>
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                border: `1px solid ${theme.getColor('border')}`,
+                                borderRadius: theme.getBorderRadius('lg'),
+                                backgroundColor: theme.getColor('surface'),
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: theme.getColor('textSecondary'),
+                                fontSize: '12px',
+                                padding: '10px'
+                            }}
+                        >
+                            📑 Секция
+                        </div>
+                    </div>
+                );
+
+            case 'divider':
+                return (
+                    <div style={elementStyle}>
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '1px',
+                                backgroundColor: theme.getColor('border'),
+                                margin: 'auto 0'
+                            }}
+                        />
+                    </div>
+                );
+
+            case 'spacer':
+                return (
+                    <div style={elementStyle}>
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                background: `repeating-linear-gradient(
+                  45deg,
+                  ${theme.getColor('surface')},
+                  ${theme.getColor('surface')} 5px,
+                  ${theme.getColor('border')} 5px,
+                  ${theme.getColor('border')} 10px
+                )`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: theme.getColor('textSecondary'),
+                                fontSize: '12px'
+                            }}
+                        >
+                            ⏸️ Отступ
+                        </div>
+                    </div>
+                );
+
+            case 'input':
+                return (
+                    <div style={elementStyle}>
+                        <input
+                            type="text"
+                            placeholder={item.element.props?.placeholder || 'Поле ввода...'}
+                            style={{
+                                width: '80%',
+                                padding: '8px 12px',
+                                border: `1px solid ${theme.getColor('border')}`,
+                                borderRadius: theme.getBorderRadius('sm'),
+                                fontSize: '14px',
+                                fontFamily: 'inherit',
+                                backgroundColor: theme.getColor('background'),
+                                color: theme.getColor('text')
+                            }}
+                            disabled
+                        />
+                    </div>
+                );
+
+            default:
+                return (
+                    <div style={elementStyle}>
+                        <span style={{ color: theme.getColor('textSecondary') }}>
+                            {item.element.metadata?.name || 'Элемент'}
+                        </span>
+                    </div>
+                );
+        }
+    };
 
     return (
         <div
-            ref={setNodeRef}
-            style={style}
-            {...listeners}
-            {...attributes}
-            className="palette-item"
+            className={`palette-item ${isDragging ? 'dragging' : ''} category-${item.category}`}
+            draggable={true}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onClick={handleClick}
+            title={`Добавить ${item.name}`}
         >
-            <div className="palette-item-icon">{emoji}</div>
-            <div className="palette-item-content">
-                <div className="palette-item-label">{label}</div>
-                <div className="palette-item-description">{description}</div>
+            <div className="palette-item-preview">
+                {renderElementPreview()}
             </div>
-            <div className="palette-item-drag">⋮⋮</div>
+
+            <div className="palette-item-info">
+                <div className="palette-item-header">
+                    <span className="palette-item-icon">{item.icon}</span>
+                    <span className="palette-item-name">{item.name}</span>
+                    {item.isNew && <span className="palette-item-badge">NEW</span>}
+                </div>
+
+                <div className="palette-item-description">
+                    {item.element.metadata?.name || 'Элемент конструктора'}
+                </div>
+
+                <div className="palette-item-meta">
+                    <span className="palette-item-category">
+                        {getCategoryName(item.category)}
+                    </span>
+                    <span className="palette-item-popularity">
+                        {'★'.repeat(Math.floor(item.popularity / 20))}
+                    </span>
+                </div>
+            </div>
+
+            <div className="palette-item-drag-handle">
+                ⋮⋮
+            </div>
         </div>
     );
+};
+
+// Вспомогательная функция для получения читаемого названия категории
+const getCategoryName = (category: string): string => {
+    const categoryNames: Record<string, string> = {
+        layout: 'Макет',
+        content: 'Контент',
+        media: 'Медиа',
+        form: 'Формы',
+        navigation: 'Навигация',
+        advanced: 'Расширенные'
+    };
+
+    return categoryNames[category] || category;
 };
 
 export default PaletteItem;
