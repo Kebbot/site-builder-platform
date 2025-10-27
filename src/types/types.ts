@@ -13,7 +13,7 @@ export interface BuilderElement {
         rotation?: number;
         lockAspectRatio?: boolean;
     };
-    style: {
+    /*style: {
         // Layout
         display?: 'block' | 'flex' | 'grid' | 'inline' | 'inline-block' | 'none';
         position?: 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky';
@@ -86,7 +86,8 @@ export interface BuilderElement {
         maxHeight?: string;
         objectFit?: 'fill' | 'contain' | 'cover' | 'none' | 'scale-down';
         zIndex?: number;
-    };
+    }; */
+    style: React.CSSProperties;
     content?: string;
     children?: BuilderElement[];
     metadata: ElementMetadata;
@@ -101,6 +102,29 @@ export interface BuilderElement {
         target?: '_blank' | '_self' | '_parent' | '_top';
         alt?: string;
         src?: string;
+
+        // Специфичные свойства для разных типов элементов
+        level?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'; // Для заголовков
+        type?: 'text' | 'email' | 'password' | 'number' | 'tel'; // Для input
+        variant?: 'primary' | 'secondary' | 'text' | 'outline'; // Для кнопок
+        className?: string;
+        id?: string;
+        customCSS?: string;
+        onClick?: string;
+        onChange?: string;
+        onSubmit?: string;
+
+        // Для изображений
+        objectFit?: 'fill' | 'contain' | 'cover' | 'none' | 'scale-down';
+
+        // Для контейнеров
+        display?: 'block' | 'flex' | 'grid' | 'inline' | 'inline-block';
+        flexDirection?: 'row' | 'row-reverse' | 'column' | 'column-reverse';
+        justifyContent?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around';
+        alignItems?: 'stretch' | 'flex-start' | 'flex-end' | 'center' | 'baseline';
+
+        // Любые другие свойства
+        [key: string]: any;
     };
 }
 
@@ -227,17 +251,20 @@ export interface ProjectSettings {
 export interface DragState {
     isDragging: boolean;
     elementType: string;
-    elementData?: Partial<BuilderElement>;
+    elementData?: Partial<BuilderElement> | null;
     source?: 'palette' | 'canvas';
 }
 
 // Выравнивание и направляющие
 export interface AlignmentGuide {
+    id?: string;
     type: 'vertical' | 'horizontal';
     position: number;
-    elements: string[];
+    elementIds: string[];
     strength: 'weak' | 'medium' | 'strong';
 }
+
+
 
 export interface SnapLines {
     vertical: number[];
@@ -270,7 +297,7 @@ export interface Property {
     max?: number;
     step?: number;
     unit?: string;
-    category?: 'layout' | 'typography' | 'background' | 'border' | 'effects' | 'advanced';
+    category?: 'layout' | 'typography' | 'background' | 'border' | 'effects' | 'advanced' | 'content';
 }
 
 // Аналитика и предпросмотр

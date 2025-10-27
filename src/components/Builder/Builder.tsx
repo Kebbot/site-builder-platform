@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { BuilderElement, Container, Project, DragState, AlignmentGuide } from '../../types/types';
-import { BuilderElement as ElementComponent } from './BuilderElement';
+import BuilderElementComponent from './BuilderElement'; // Измененный импорт
 import { ContainerDropZone } from './ContainerDropZone';
 import { AlignmentGuides } from './AlignmentGuides';
 import { GridOverlay } from './GridOverlay';
@@ -39,17 +39,17 @@ export const Builder: React.FC<BuilderProps> = ({
     const [activeGuides, setActiveGuides] = useState<AlignmentGuide[]>([]);
     const [snapLines, setSnapLines] = useState<{ vertical: number[]; horizontal: number[] }>({ vertical: [], horizontal: [] });
     const containerRef = useRef<HTMLDivElement>(null);
-    const { theme } = useTheme();
-
-    // Инициализируем хук выравнивания
-    const { guides, calculateGuides, clearGuides, updateVisibleGuides } = useAlignmentGuides({
-        container: selectedContainer || project.containers[0],
-        snapThreshold: project.settings.snapThreshold || 5,
-        enabled: project.settings.snap
-    });
+    const { theme, getColor, getBorderRadius } = useTheme();
 
     // Получаем активный контейнер (или первый, если не выбран)
     const activeContainer = selectedContainer || project.containers[0];
+
+    // Инициализируем хук выравнивания
+    const { guides, calculateGuides, clearGuides, updateVisibleGuides } = useAlignmentGuides({
+        container: activeContainer,
+        snapThreshold: project.settings.snapThreshold || 5,
+        enabled: project.settings.snap
+    });
 
     // Обработчик перемещения элемента
     const handleElementMove = useCallback((elementId: string, newPosition: Partial<BuilderElement['position']>) => {
@@ -101,7 +101,7 @@ export const Builder: React.FC<BuilderProps> = ({
                 content: 'Текст',
                 style: {
                     fontSize: 16,
-                    color: theme.getColor('text'),
+                    color: getColor('text'),
                     padding: '8px'
                 },
                 metadata: {
@@ -119,7 +119,7 @@ export const Builder: React.FC<BuilderProps> = ({
                 style: {
                     fontSize: 24,
                     fontWeight: 'bold',
-                    color: theme.getColor('text'),
+                    color: getColor('text'),
                     padding: '12px'
                 },
                 props: { level: 'h1' },
@@ -136,11 +136,11 @@ export const Builder: React.FC<BuilderProps> = ({
                 type: 'button',
                 content: 'Кнопка',
                 style: {
-                    backgroundColor: theme.getColor('primary'),
+                    backgroundColor: getColor('primary'),
                     color: 'white',
                     padding: '12px 24px',
                     border: 'none',
-                    borderRadius: theme.getBorderRadius('md'),
+                    borderRadius: getBorderRadius('md'),
                     fontSize: 16,
                     fontWeight: 'bold',
                     cursor: 'pointer'
@@ -177,8 +177,8 @@ export const Builder: React.FC<BuilderProps> = ({
                 type: 'container',
                 content: '',
                 style: {
-                    backgroundColor: theme.getColor('surface'),
-                    border: `1px dashed ${theme.getColor('border')}`,
+                    backgroundColor: getColor('surface'),
+                    border: `1px dashed ${getColor('border')}`,
                     padding: '20px',
                     minHeight: '100px'
                 },
@@ -341,6 +341,11 @@ export const Builder: React.FC<BuilderProps> = ({
         }
     }, [clearGuides]);
 
+    // Получаем все элементы для передачи в BuilderElement
+    const getAllElements = useCallback(() => {
+        return project.containers.flatMap(container => container.elements);
+    }, [project.containers]);
+
     // Обработчик клавиш
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -376,11 +381,6 @@ export const Builder: React.FC<BuilderProps> = ({
         };
     }, [mode, selectedElement, handleElementDelete, handleElementDuplicate, onElementSelect, onModeChange]);
 
-    // Получаем все элементы для передачи в BuilderElement
-    const getAllElements = useCallback(() => {
-        return project.containers.flatMap(container => container.elements);
-    }, [project.containers]);
-
     // Рендер контейнеров
     const renderContainers = () => {
         return project.containers.map(container => (
@@ -400,7 +400,7 @@ export const Builder: React.FC<BuilderProps> = ({
                     onDragStateChange={handleDragStateChange}
                 >
                     {container.elements.map(element => (
-                        <ElementComponent
+                        <BuilderElementComponent // Измененное имя компонента
                             key={element.id}
                             element={element}
                             isSelected={selectedElement?.id === element.id}
@@ -432,7 +432,7 @@ export const Builder: React.FC<BuilderProps> = ({
     };
 
     const builderStyle: React.CSSProperties = {
-        backgroundColor: project.settings.pageBackground || theme.getColor('background'),
+        backgroundColor: project.settings.pageBackground || getColor('background'),
         backgroundImage: project.settings.pageBackgroundImage ? `url(${project.settings.pageBackgroundImage})` : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -446,7 +446,9 @@ export const Builder: React.FC<BuilderProps> = ({
             ref={containerRef}
         >
             {/* Сетка */}
-            {project.settings.grid && mode === 'edit' && <GridOverlay />}
+            {project.settings.grid && mode === 'edit' && (
+                <GridOverlay isVisible={project.settings.grid} />
+            )}
 
             {/* Контейнеры */}
             <div className="builder-containers">

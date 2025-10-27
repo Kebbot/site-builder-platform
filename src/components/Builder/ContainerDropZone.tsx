@@ -248,7 +248,7 @@ export const ContainerDropZone: React.FC<ContainerDropZoneProps> = ({
         position: 'relative',
         minHeight: container.style.minHeight || '400px',
         cursor: mode === 'edit' && isActive ? 'default' : 'default',
-    };
+    } as React.CSSProperties;
 
     return (
         <div

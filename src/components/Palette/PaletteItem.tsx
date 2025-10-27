@@ -15,7 +15,7 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
     onDragEnd
 }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const { theme } = useTheme();
+    const { theme, getColor, getBorderRadius } = useTheme();
 
     // Обработчик начала перетаскивания
     const handleDragStart = useCallback((e: React.DragEvent) => {
@@ -52,10 +52,10 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '14px',
-            borderRadius: theme.getBorderRadius('md'),
-            border: `1px solid ${theme.getColor('border')}`,
-            backgroundColor: theme.getColor('surface'),
-            color: theme.getColor('text'),
+            borderRadius: getBorderRadius('md'),
+            border: `1px solid ${getColor('border')}`,
+            backgroundColor: getColor('surface'),
+            color: getColor('text'),
             pointerEvents: 'none',
             overflow: 'hidden'
         };
@@ -66,7 +66,7 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                     <div style={elementStyle}>
                         <span style={{
                             fontSize: '14px',
-                            color: theme.getColor('text'),
+                            color: getColor('text'),
                             fontFamily: 'inherit'
                         }}>
                             {item.element.content || 'Текст'}
@@ -80,7 +80,7 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                         <h3 style={{
                             fontSize: '16px',
                             fontWeight: 'bold',
-                            color: theme.getColor('text'),
+                            color: getColor('text'),
                             margin: 0,
                             fontFamily: 'inherit'
                         }}>
@@ -94,10 +94,10 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                     <div style={elementStyle}>
                         <button
                             style={{
-                                backgroundColor: theme.getColor('primary'),
+                                backgroundColor: getColor('primary'),
                                 color: 'white',
                                 border: 'none',
-                                borderRadius: theme.getBorderRadius('sm'),
+                                borderRadius: getBorderRadius('sm'),
                                 padding: '8px 16px',
                                 fontSize: '14px',
                                 fontWeight: 'bold',
@@ -118,11 +118,11 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                             style={{
                                 width: '100%',
                                 height: '100%',
-                                background: `linear-gradient(45deg, ${theme.getColor('surface')}, ${theme.getColor('border')})`,
+                                background: `linear-gradient(45deg, ${getColor('surface')}, ${getColor('border')})`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: theme.getColor('textSecondary'),
+                                color: getColor('textSecondary'),
                                 fontSize: '12px'
                             }}
                         >
@@ -138,13 +138,13 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                             style={{
                                 width: '100%',
                                 height: '100%',
-                                border: `2px dashed ${theme.getColor('border')}`,
-                                borderRadius: theme.getBorderRadius('md'),
-                                backgroundColor: theme.getColor('background'),
+                                border: `2px dashed ${getColor('border')}`,
+                                borderRadius: getBorderRadius('md'),
+                                backgroundColor: getColor('background'),
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: theme.getColor('textSecondary'),
+                                color: getColor('textSecondary'),
                                 fontSize: '12px'
                             }}
                         >
@@ -160,13 +160,13 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                             style={{
                                 width: '100%',
                                 height: '100%',
-                                border: `1px solid ${theme.getColor('border')}`,
-                                borderRadius: theme.getBorderRadius('lg'),
-                                backgroundColor: theme.getColor('surface'),
+                                border: `1px solid ${getColor('border')}`,
+                                borderRadius: getBorderRadius('lg'),
+                                backgroundColor: getColor('surface'),
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: theme.getColor('textSecondary'),
+                                color: getColor('textSecondary'),
                                 fontSize: '12px',
                                 padding: '10px'
                             }}
@@ -183,7 +183,7 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                             style={{
                                 width: '100%',
                                 height: '1px',
-                                backgroundColor: theme.getColor('border'),
+                                backgroundColor: getColor('border'),
                                 margin: 'auto 0'
                             }}
                         />
@@ -199,15 +199,15 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                                 height: '100%',
                                 background: `repeating-linear-gradient(
                   45deg,
-                  ${theme.getColor('surface')},
-                  ${theme.getColor('surface')} 5px,
-                  ${theme.getColor('border')} 5px,
-                  ${theme.getColor('border')} 10px
+                  ${getColor('surface')},
+                  ${getColor('surface')} 5px,
+                  ${getColor('border')} 5px,
+                  ${getColor('border')} 10px
                 )`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: theme.getColor('textSecondary'),
+                                color: getColor('textSecondary'),
                                 fontSize: '12px'
                             }}
                         >
@@ -225,12 +225,12 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
                             style={{
                                 width: '80%',
                                 padding: '8px 12px',
-                                border: `1px solid ${theme.getColor('border')}`,
-                                borderRadius: theme.getBorderRadius('sm'),
+                                border: `1px solid ${getColor('border')}`,
+                                borderRadius: getBorderRadius('sm'),
                                 fontSize: '14px',
                                 fontFamily: 'inherit',
-                                backgroundColor: theme.getColor('background'),
-                                color: theme.getColor('text')
+                                backgroundColor: getColor('background'),
+                                color: getColor('text')
                             }}
                             disabled
                         />
@@ -240,7 +240,7 @@ export const PaletteItem: React.FC<PaletteItemProps> = ({
             default:
                 return (
                     <div style={elementStyle}>
-                        <span style={{ color: theme.getColor('textSecondary') }}>
+                        <span style={{ color: getColor('textSecondary') }}>
                             {item.element.metadata?.name || 'Элемент'}
                         </span>
                     </div>

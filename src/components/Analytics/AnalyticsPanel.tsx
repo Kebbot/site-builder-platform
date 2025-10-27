@@ -1,68 +1,141 @@
 import React from 'react';
-import { Component } from '../../types/types';
+import { Project } from '../../types/types';
 import './AnalyticsPanel.css';
 
 interface AnalyticsPanelProps {
-    components: Component[];
-    isOpen: boolean;
-    onClose: () => void;
+    project: Project;
+    onBack: () => void;
 }
 
-const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ components, isOpen, onClose }) => {
-    if (!isOpen) return null;
+export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
+    project,
+    onBack
+}) => {
+    // Сбор статистики по проекту
+    const totalElements = project.containers.reduce(
+        (sum, container) => sum + container.elements.length,
+        0
+    );
 
-    const componentStats = components.reduce((acc, component) => {
-        acc[component.type] = (acc[component.type] || 0) + 1;
+    const elementTypes = project.containers.flatMap(container =>
+        container.elements.map(element => element.type)
+    );
+
+    const elementTypeCount = elementTypes.reduce((acc, type) => {
+        acc[type] = (acc[type] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);
 
-    const totalComponents = components.length;
-    const mostUsedType = Object.entries(componentStats).sort((a, b) => b[1] - a[1])[0];
-
     return (
-        <div className="analytics-overlay">
-            <div className="analytics-panel">
-                <div className="analytics-header">
-                    <h2>📊 Статистика проекта</h2>
-                    <button className="close-btn" onClick={onClose}>✕</button>
-                </div>
+        <div className="analytics-panel">
+            <div className="analytics-header">
+                <button onClick={onBack} className="back-button">
+                    ← Назад к конструктору
+                </button>
+                <h2>Аналитика проекта</h2>
+            </div>
 
-                <div className="analytics-content">
+            <div className="analytics-content">
+                <div className="stats-grid">
                     <div className="stat-card">
-                        <div className="stat-value">{totalComponents}</div>
+                        <div className="stat-value">{project.containers.length}</div>
+                        <div className="stat-label">Контейнеров</div>
+                    </div>
+
+                    <div className="stat-card">
+                        <div className="stat-value">{totalElements}</div>
                         <div className="stat-label">Всего элементов</div>
                     </div>
 
                     <div className="stat-card">
-                        <div className="stat-value">{mostUsedType ? mostUsedType[1] : 0}</div>
-                        <div className="stat-label">
-                            {mostUsedType ? `Чаще всего: ${getComponentName(mostUsedType[0])}` : 'Нет данных'}
+                        <div className="stat-value">
+                            {new Date(project.metadata.createdAt).toLocaleDateString()}
                         </div>
+                        <div className="stat-label">Создан</div>
                     </div>
 
-                    <div className="distribution">
-                        <h3>Распределение по типам:</h3>
-                        {Object.entries(componentStats).map(([type, count]) => (
-                            <div key={type} className="distribution-item">
-                                <span className="type-name">{getComponentName(type)}</span>
+                    <div className="stat-card">
+                        <div className="stat-value">
+                            {new Date(project.metadata.updatedAt).toLocaleDateString()}
+                        </div>
+                        <div className="stat-label">Обновлен</div>
+                    </div>
+                </div>
+
+                <div className="analytics-section">
+                    <h3>Распределение элементов по типам</h3>
+                    <div className="element-types">
+                        {Object.entries(elementTypeCount).map(([type, count]) => (
+                            <div key={type} className="type-item">
+                                <span className="type-name">{type}</span>
                                 <span className="type-count">{count}</span>
                                 <div
                                     className="type-bar"
-                                    style={{ width: `${(count / totalComponents) * 100}%` }}
+                                    style={{
+                                        width: `${(count / totalElements) * 100}%`
+                                    }}
                                 />
                             </div>
                         ))}
                     </div>
+                </div>
 
-                    <div className="export-stats">
-                        <h3>Рекомендации:</h3>
-                        <ul>
-                            {totalComponents === 0 && <li>🎯 Добавьте первый элемент чтобы начать</li>}
-                            {totalComponents > 10 && <li>📝 Много элементов - рассмотрите группировку</li>}
-                            {mostUsedType && mostUsedType[1] > 5 && (
-                                <li>⚡ Часто используете "{getComponentName(mostUsedType[0])}" - создайте шаблон</li>
-                            )}
-                        </ul>
+                <div className="analytics-section">
+                    <h3>Информация о проекте</h3>
+                    <div className="project-info">
+                        <div className="info-row">
+                            <span className="info-label">Название:</span>
+                            <span className="info-value">{project.name}</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">Описание:</span>
+                            <span className="info-value">{project.description || 'Не указано'}</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">Версия:</span>
+                            <span className="info-value">{project.metadata.version}</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">Статус:</span>
+                            <span className="info-value">
+                                {project.settings.published ? 'Опубликован' : 'Черновик'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="analytics-section">
+                    <h3>Рекомендации</h3>
+                    <div className="recommendations">
+                        {totalElements === 0 && (
+                            <div className="recommendation warning">
+                                ⚠️ Добавьте элементы на страницу
+                            </div>
+                        )}
+
+                        {!project.settings.title && (
+                            <div className="recommendation warning">
+                                ⚠️ Установите заголовок страницы
+                            </div>
+                        )}
+
+                        {!project.settings.description && (
+                            <div className="recommendation warning">
+                                ⚠️ Добавьте описание для SEO
+                            </div>
+                        )}
+
+                        {totalElements > 10 && (
+                            <div className="recommendation success">
+                                ✅ Отличное количество элементов
+                            </div>
+                        )}
+
+                        {Object.keys(elementTypeCount).length >= 3 && (
+                            <div className="recommendation success">
+                                ✅ Хорошее разнообразие типов элементов
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -70,18 +143,5 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ components, isOpen, onC
     );
 };
 
-const getComponentName = (type: string) => {
-    const names: Record<string, string> = {
-        text: 'Текст',
-        button: 'Кнопка',
-        image: 'Изображение',
-        header: 'Шапка',
-        footer: 'Подвал',
-        card: 'Карточка',
-        form: 'Форма',
-        input: 'Поле ввода'
-    };
-    return names[type] || type;
-};
-
+// Также оставляем default export для обратной совместимости
 export default AnalyticsPanel;

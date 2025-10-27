@@ -3,10 +3,11 @@ import { BuilderElement } from '../../types/types';
 import { useTheme } from '../../contexts/ThemeContext';
 import './BuilderElement.css';
 
-interface BuilderElementProps {
+// Переименуем интерфейс пропсов, чтобы избежать конфликта имен
+interface BuilderElementComponentProps {
     element: BuilderElement;
     isSelected: boolean;
-    onSelect: (element: BuilderElement) => void;
+    onSelect: (element: BuilderElement | null) => void;
     onMove: (elementId: string, position: Partial<BuilderElement['position']>) => void;
     onDelete: (elementId: string) => void;
     onUpdate: (elementId: string, updates: Partial<BuilderElement>) => void;
@@ -19,7 +20,7 @@ interface BuilderElementProps {
     allElements: BuilderElement[];
 }
 
-export const BuilderElement: React.FC<BuilderElementProps> = ({
+export const BuilderElementComponent: React.FC<BuilderElementComponentProps> = ({
     element,
     isSelected,
     onSelect,
@@ -64,7 +65,7 @@ export const BuilderElement: React.FC<BuilderElementProps> = ({
             height: typeof element.position.height === 'number' ? element.position.height : parseInt(element.position.height as string)
         });
 
-        onDragStateChange({ isDragging: true, elementType: element.type, elementData: element });
+        onDragStateChange({ isDragging: true, elementType: element.type, elementData: element || null });
     };
 
     // Обработчик ресайза
@@ -255,6 +256,16 @@ export const BuilderElement: React.FC<BuilderElementProps> = ({
             width: '100%',
             height: '100%',
             boxSizing: 'border-box'
+        } as React.CSSProperties;
+
+        const safeStyle: React.CSSProperties = {
+            ...baseStyle,
+            // Явно типизируем свойства, которые могут вызывать конфликты
+            overflowX: element.style.overflowX as any,
+            overflowY: element.style.overflowY as any,
+            objectFit: element.style.objectFit as any,
+            cursor: element.style.cursor as any,
+            // Добавляем другие проблемные свойства по мере необходимости
         };
 
         switch (element.type) {
@@ -263,7 +274,7 @@ export const BuilderElement: React.FC<BuilderElementProps> = ({
                 return (
                     <div
                         className="element-text"
-                        style={baseStyle}
+                        style={safeStyle}
                         contentEditable={mode === 'edit' && isSelected}
                         suppressContentEditableWarning
                         onBlur={handleContentChange}
@@ -273,14 +284,14 @@ export const BuilderElement: React.FC<BuilderElementProps> = ({
 
             case 'heading':
                 const headingLevel = element.props?.level || 'h1';
-                const HeadingTag = headingLevel as keyof JSX.IntrinsicElements;
+                const HeadingTag = headingLevel as keyof React.JSX.IntrinsicElements;
                 return (
                     <HeadingTag
                         className="element-heading"
-                        style={baseStyle}
+                        style={safeStyle}
                         contentEditable={mode === 'edit' && isSelected}
                         suppressContentEditableWarning
-                        onBlur={handleContentChange}
+                        onBlur={handleContentChange as any}
                         dangerouslySetInnerHTML={{ __html: element.content || 'Заголовок' }}
                     />
                 );
@@ -452,4 +463,5 @@ export const BuilderElement: React.FC<BuilderElementProps> = ({
     );
 };
 
-export default BuilderElement;
+// Экспортируем под новым именем, чтобы избежать конфликта
+export default BuilderElementComponent;

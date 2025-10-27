@@ -24,7 +24,7 @@ const defaultPaletteItems: PaletteItemType[] = [
                 color: '#1f2937',
                 padding: '8px',
                 fontFamily: 'inherit'
-            },
+            } as React.CSSProperties,
             metadata: {
                 name: 'Текст',
                 icon: '📝',
@@ -51,7 +51,7 @@ const defaultPaletteItems: PaletteItemType[] = [
                 color: '#1f2937',
                 padding: '12px',
                 fontFamily: 'inherit'
-            },
+            } as React.CSSProperties,
             props: { level: 'h1' },
             metadata: {
                 name: 'Заголовок',
@@ -83,7 +83,7 @@ const defaultPaletteItems: PaletteItemType[] = [
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 textAlign: 'center' as const
-            },
+            } as React.CSSProperties,
             metadata: {
                 name: 'Кнопка',
                 icon: '🔘',
@@ -106,7 +106,7 @@ const defaultPaletteItems: PaletteItemType[] = [
             content: 'https://via.placeholder.com/200x100',
             style: {
                 objectFit: 'cover'
-            },
+            } as React.CSSProperties,
             props: {
                 alt: 'Изображение',
                 src: 'https://via.placeholder.com/200x100'
@@ -136,7 +136,7 @@ const defaultPaletteItems: PaletteItemType[] = [
                 border: '1px dashed #e5e7eb',
                 padding: '20px',
                 minHeight: '100px'
-            },
+            } as React.CSSProperties,
             metadata: {
                 name: 'Контейнер',
                 icon: '📦',
@@ -163,7 +163,7 @@ const defaultPaletteItems: PaletteItemType[] = [
                 border: '1px solid #e5e7eb',
                 padding: '40px 20px',
                 minHeight: '200px'
-            },
+            } as React.CSSProperties,
             metadata: {
                 name: 'Секция',
                 icon: '📑',
@@ -189,7 +189,7 @@ const defaultPaletteItems: PaletteItemType[] = [
                 borderTop: '1px solid #e5e7eb',
                 height: '1px',
                 margin: '20px 0'
-            },
+            } as React.CSSProperties,
             metadata: {
                 name: 'Разделитель',
                 icon: '➖',
@@ -213,7 +213,7 @@ const defaultPaletteItems: PaletteItemType[] = [
             style: {
                 height: '40px',
                 backgroundColor: 'transparent'
-            },
+            } as React.CSSProperties,
             metadata: {
                 name: 'Отступ',
                 icon: '⏸️',
@@ -240,7 +240,7 @@ const defaultPaletteItems: PaletteItemType[] = [
                 borderRadius: '6px',
                 fontSize: '14px',
                 fontFamily: 'inherit'
-            },
+            } as React.CSSProperties,
             props: {
                 placeholder: 'Введите текст...',
                 type: 'text'
@@ -274,14 +274,15 @@ export const Palette: React.FC<PaletteProps> = ({
 }) => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const { theme } = useTheme();
-
+    const { theme, getColor, getBorderRadius } = useTheme();
     // Фильтрация элементов по категории и поисковому запросу
     const filteredItems = useMemo(() => {
         return defaultPaletteItems.filter(item => {
             const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+            // Безопасная проверка поиска с опциональной цепочкой
             const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.element.metadata.name.toLowerCase().includes(searchQuery.toLowerCase());
+                item.element.metadata?.name.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+
             return matchesCategory && matchesSearch;
         });
     }, [selectedCategory, searchQuery]);

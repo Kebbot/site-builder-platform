@@ -452,8 +452,10 @@ function App() {
 
             {activeTab === 'templates' && (
               <TemplatePicker
+                isOpen={activeTab === 'templates'}
+                onClose={() => setActiveTab('builder')}
                 onTemplateSelect={handleTemplateSelect}
-                onBack={() => setActiveTab('builder')}
+                currentProject={project}
               />
             )}
 
@@ -482,9 +484,7 @@ function App() {
 
         {/* Контекстная помощь */}
         <ContextHelper
-          selectedElement={selectedElement}
-          selectedContainer={selectedContainer}
-          mode={mode}
+          components={allElements}
         />
 
         {/* Диалог экспорта */}

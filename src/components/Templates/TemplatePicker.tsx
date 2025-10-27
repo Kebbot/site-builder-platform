@@ -4,10 +4,11 @@ import { useTheme } from '../../contexts/ThemeContext';
 import './TemplatePicker.css';
 
 interface TemplatePickerProps {
-    isOpen: boolean;
+    isOpen?: boolean;
     onClose: () => void;
-    onTemplateSelect: (template: Template) => void;
-    currentProject: Project;
+    onTemplateSelect: (templateProject: Project) => void;
+    currentProject?: Project;
+    onBack?: () => void;
 }
 
 // Моковые данные шаблонов (в реальном приложении будут загружаться с сервера)
@@ -46,7 +47,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Текст', icon: '📝', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '80px', backgroundColor: '#ffffff', padding: '0' }
+                    style:
+                    {
+                        width: '100%',
+                        height: '80px',
+                        minHeight: '80px',
+                        backgroundColor: '#ffffff',
+                        padding: '0'
+                    }, metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 },
                 {
                     id: 'hero',
@@ -81,7 +93,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Кнопка', icon: '🔘', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '400px', backgroundColor: '#f8fafc', padding: '40px 0' }
+                    style: {
+                        width: '100%',
+                        height: '400px',
+                        minHeight: '400px',
+                        backgroundColor: '#f8fafc',
+                        padding: '40px 0'
+                    },
+                    metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 }
             ],
             settings: {
@@ -131,7 +154,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Текст', icon: '📝', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '80px', backgroundColor: '#ffffff', padding: '0' }
+                    style: {
+                        width: '100%',
+                        height: '80px',
+                        minHeight: '80px',
+                        backgroundColor: '#ffffff',
+                        padding: '0'
+                    },
+                    metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 },
                 {
                     id: 'gallery',
@@ -148,7 +182,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Заголовок', icon: '🔤', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '600px', backgroundColor: '#faf5ff', padding: '40px 0' }
+                    style: {
+                        width: '100%',
+                        height: '600px',
+                        minHeight: '600px',
+                        backgroundColor: '#faf5ff',
+                        padding: '40px 0'
+                    },
+                    metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 }
             ],
             settings: {
@@ -198,7 +243,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Текст', icon: '📝', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '80px', backgroundColor: '#ffffff', padding: '0' }
+                    style: {
+                        width: '100%',
+                        height: '80px',
+                        minHeight: '80px',
+                        backgroundColor: '#ffffff',
+                        padding: '0'
+                    },
+                    metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 },
                 {
                     id: 'products',
@@ -215,7 +271,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Заголовок', icon: '🔤', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '500px', backgroundColor: '#f0fdf4', padding: '40px 0' }
+                    style: {
+                        width: '100%',
+                        height: '500px',
+                        minHeight: '500px',
+                        backgroundColor: '#f0fdf4',
+                        padding: '40px 0'
+                    },
+                    metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 }
             ],
             settings: {
@@ -265,7 +332,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Текст', icon: '📝', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '80px', backgroundColor: '#ffffff', padding: '0' }
+                    style: {
+                        width: '100%',
+                        height: '80px',
+                        minHeight: '80px',
+                        backgroundColor: '#ffffff',
+                        padding: '0'
+                    },
+                    metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 },
                 {
                     id: 'posts',
@@ -282,7 +360,18 @@ const defaultTemplates: Template[] = [
                             metadata: { name: 'Заголовок', icon: '🔤', category: 'content', canHaveChildren: false }
                         }
                     ],
-                    style: { width: '100%', height: '600px', backgroundColor: '#fef2f2', padding: '40px 0' }
+                    style: {
+                        width: '100%',
+                        height: '600px',
+                        minHeight: '600px',
+                        backgroundColor: '#fef2f2',
+                        padding: '40px 0'
+                    },
+                    metadata: {
+                        isRoot: true,
+                        canDelete: false,
+                        canRename: true
+                    }
                 }
             ],
             settings: {
@@ -320,10 +409,11 @@ const categories = [
 ];
 
 export const TemplatePicker: React.FC<TemplatePickerProps> = ({
-    isOpen,
+    isOpen = true,
     onClose,
     onTemplateSelect,
-    currentProject
+    currentProject,
+    onBack
 }) => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -342,7 +432,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
 
     // Обработчик выбора шаблона
     const handleTemplateSelect = useCallback((template: Template) => {
-        onTemplateSelect(template);
+        onTemplateSelect(template.project);
         onClose();
     }, [onTemplateSelect, onClose]);
 

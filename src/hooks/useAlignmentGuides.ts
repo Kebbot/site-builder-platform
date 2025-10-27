@@ -185,7 +185,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type,
                 position: snapPosition,
-                elements: elementIds,
+                elementIds: elementIds,
                 strength
             });
 
@@ -209,7 +209,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'vertical',
                 position: 0,
-                elements: ['container'],
+                elementIds: ['container'],
                 strength: 'strong'
             });
             verticalSnapLines.push(0);
@@ -220,7 +220,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'vertical',
                 position: containerRect.width,
-                elements: ['container'],
+                elementIds: ['container'],
                 strength: 'strong'
             });
             verticalSnapLines.push(containerRect.width);
@@ -231,7 +231,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'horizontal',
                 position: 0,
-                elements: ['container'],
+                elementIds: ['container'],
                 strength: 'strong'
             });
             horizontalSnapLines.push(0);
@@ -242,7 +242,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'horizontal',
                 position: containerRect.height,
-                elements: ['container'],
+                elementIds: ['container'],
                 strength: 'strong'
             });
             horizontalSnapLines.push(containerRect.height);
@@ -253,7 +253,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'vertical',
                 position: containerRect.width / 2,
-                elements: ['container'],
+                elementIds: ['container'],
                 strength: 'medium'
             });
             verticalSnapLines.push(containerRect.width / 2);
@@ -264,7 +264,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'horizontal',
                 position: containerRect.height / 2,
-                elements: ['container'],
+                elementIds: ['container'],
                 strength: 'medium'
             });
             horizontalSnapLines.push(containerRect.height / 2);
@@ -286,7 +286,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'vertical',
                 position: gridX,
-                elements: ['grid'],
+                elementIds: ['grid'],
                 strength: 'weak'
             });
             verticalSnapLines.push(gridX);
@@ -298,7 +298,7 @@ export const useAlignmentGuides = ({
             guides.push({
                 type: 'horizontal',
                 position: gridY,
-                elements: ['grid'],
+                elementIds: ['grid'],
                 strength: 'weak'
             });
             horizontalSnapLines.push(gridY);

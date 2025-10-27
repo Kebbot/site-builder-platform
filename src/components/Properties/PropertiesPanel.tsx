@@ -20,7 +20,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     onContainerUpdate,
     onProjectUpdate
 }) => {
-    const { theme } = useTheme();
+    const { theme, getColor, getBorderRadius } = useTheme();
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['layout', 'typography']));
 
     // Группы свойств для элемента
@@ -134,7 +134,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         id: 'color',
                         name: 'Цвет текста',
                         type: 'color',
-                        value: selectedElement.style.color || theme.getColor('text'),
+                        value: selectedElement.style.color || getColor('text'),
                         category: 'typography'
                     },
                     {
